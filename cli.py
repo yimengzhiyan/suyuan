@@ -43,6 +43,13 @@ def main() -> int:
         print(f"初始化失败：{e}", file=sys.stderr)
         return 2
 
+    from suyuan import gate
+
+    g = gate.check(text, llm)
+    if not g.allowed:
+        print(f"[溯源] 已拒绝（{g.category}）：{g.reason}", file=sys.stderr)
+        print(gate.REFUSAL_TEXT.get(g.category, g.reason))
+        sys.exit(2)
     report = Verifier(search, llm).verify(text, progress=lambda m: print(f"[溯源] {m}", file=sys.stderr))
     print(render_markdown(report))
     if args.json_out:

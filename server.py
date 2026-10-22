@@ -18,12 +18,13 @@ import re
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import suyuan  # noqa: F401  触发 load_dotenv
+from suyuan import gate, ocr
 from suyuan.llm import LLM
 from suyuan.report import render_markdown
 from suyuan.search import YuanbaoSearch
@@ -43,6 +44,7 @@ EXAMPLES = [
 
 # 进度文案 → 链条步骤 id，前端据此点亮对应节点
 STEP_PATTERNS = [
+    (re.compile(r"^安全检查"), "gate"),
     (re.compile(r"^抽取可核实主张"), "claims"),
     (re.compile(r"^主张 \d+：.*检索"), "search"),
     (re.compile(r"^构建溯源时间线|^溯源补搜"), "timeline"),
@@ -111,6 +113,14 @@ def verify(body: VerifyBody, request: Request):
             def progress(msg: str):
                 q.put(("progress", {"msg": msg, "step": step_of(msg)}))
 
+            # 安全闸：个人隐私 / 敏感时政 直接拒绝，不消耗搜索额度
+            progress("安全检查…")
+            g = gate.check(body.text.strip(), llm)
+            if not g.allowed:
+                q.put(("error", {"error": gate.REFUSAL_TEXT.get(g.category, g.reason), "refused": True,
+                                 "category": g.category, "reason": g.reason}))
+                return
+
             report = Verifier(search, llm).verify(body.text.strip(), progress=progress)
             data = report.to_dict()
             data["markdown"] = render_markdown(report)
@@ -137,6 +147,23 @@ def verify(body: VerifyBody, request: Request):
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+MAX_IMAGE_BYTES = 6 * 1024 * 1024
+
+
+@app.post("/api/ocr")
+async def ocr_image(file: UploadFile = File(...)):
+    """截图文字识别。multipart 字段名 file；返回 {"text","lines","elapsed"}。"""
+    data = await file.read()
+    if not data:
+        return JSONResponse({"error": "没有收到图片"}, status_code=400)
+    if len(data) > MAX_IMAGE_BYTES:
+        return JSONResponse({"error": "图片超过 6MB，请压缩后再传"}, status_code=413)
+    try:
+        return ocr.recognize(data)
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": f"识别失败：{e}"}, status_code=400)
 
 
 if WEB.exists():
