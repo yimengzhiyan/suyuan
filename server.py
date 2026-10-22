@@ -36,6 +36,48 @@ PUBLIC_MODE = os.getenv("SUYUAN_PUBLIC", "").lower() in ("1", "true", "yes")
 MAX_CONCURRENT = int(os.getenv("SUYUAN_MAX_CONCURRENT", "4"))
 _slots = threading.BoundedSemaphore(MAX_CONCURRENT)
 
+
+class RateLimiter:
+    """按来源 IP 的滑动窗口限流，内存实现，够单机用。"""
+
+    def __init__(self, limits: list[tuple[int, int]]):
+        self.limits = limits  # [(次数, 秒数), ...]
+        self.hits: dict[str, list[float]] = {}
+        self.lock = threading.Lock()
+
+    def allow(self, key: str) -> tuple[bool, int]:
+        """返回 (是否允许, 建议等待秒数)。"""
+        import time as _t
+
+        now = _t.time()
+        longest = max(w for _, w in self.limits)
+        with self.lock:
+            arr = [t for t in self.hits.get(key, []) if now - t < longest]
+            for n, w in self.limits:
+                recent = [t for t in arr if now - t < w]
+                if len(recent) >= n:
+                    return False, int(w - (now - recent[0])) + 1
+            arr.append(now)
+            self.hits[key] = arr
+            if len(self.hits) > 5000:  # 防止无限增长
+                for k in [k for k, v in self.hits.items() if not v or now - v[-1] > longest]:
+                    self.hits.pop(k, None)
+        return True, 0
+
+
+# 截图识别是纯 CPU 活：同一时刻只跑一张，单个 IP 每分钟 6 张、每小时 30 张
+_ocr_slot = threading.BoundedSemaphore(1)
+_ocr_limit = RateLimiter([(6, 60), (30, 3600)])
+# 核查：单个 IP 每分钟 5 次、每小时 30 次（公开模式下 key 是访问者自己的，这里主要保护服务器与安全闸调用）
+_verify_limit = RateLimiter([(5, 60), (30, 3600)])
+
+
+def client_ip(request: Request) -> str:
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 EXAMPLES = [
     {"label": "医保清零", "text": "网传：国家卫健委宣布从2026年1月1日起全面取消医保个人账户，所有余额清零。"},
     {"label": "高速免费取消", "text": "网传：2025年起全国取消高速公路节假日免费通行政策，交通部已下发文件。"},
@@ -97,6 +139,9 @@ def verify(body: VerifyBody, request: Request):
     llm_key = body.llm_api_key.strip() or ("" if PUBLIC_MODE else os.getenv("LLM_API_KEY", ""))
     if not wsa_key:
         return JSONResponse({"error": "缺少元宝搜索 API Key"}, status_code=400)
+    ok, wait = _verify_limit.allow(client_ip(request))
+    if not ok:
+        return JSONResponse({"error": f"核查太频繁了，请 {wait} 秒后再试"}, status_code=429)
     if not _slots.acquire(blocking=False):
         return JSONResponse({"error": "服务器正忙，请稍后再试"}, status_code=429)
 
@@ -153,17 +198,26 @@ MAX_IMAGE_BYTES = 6 * 1024 * 1024
 
 
 @app.post("/api/ocr")
-async def ocr_image(file: UploadFile = File(...)):
+async def ocr_image(request: Request, file: UploadFile = File(...)):
     """截图文字识别。multipart 字段名 file；返回 {"text","lines","elapsed"}。"""
+    ok, wait = _ocr_limit.allow(client_ip(request))
+    if not ok:
+        return JSONResponse({"error": f"截图识别太频繁了，请 {wait} 秒后再试"}, status_code=429)
     data = await file.read()
     if not data:
         return JSONResponse({"error": "没有收到图片"}, status_code=400)
     if len(data) > MAX_IMAGE_BYTES:
         return JSONResponse({"error": "图片超过 6MB，请压缩后再传"}, status_code=413)
+    if not _ocr_slot.acquire(timeout=8):
+        return JSONResponse({"error": "正在识别别人的截图，请几秒后再试"}, status_code=429)
     try:
-        return ocr.recognize(data)
+        import anyio
+
+        return await anyio.to_thread.run_sync(ocr.recognize, data)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"error": f"识别失败：{e}"}, status_code=400)
+    finally:
+        _ocr_slot.release()
 
 
 if WEB.exists():

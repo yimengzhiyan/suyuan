@@ -25,6 +25,19 @@ _PII_PATTERNS = [
 
 _PII_WHITELIST_CONTEXT = re.compile(r"热线|客服|举报电话|官方电话|咨询电话|服务热线|电话号码为公开")
 
+# 没有大模型时的时政关键词兜底。有意从严：宁可误拦，也不放过。有大模型时不使用这张表。
+_POLITICS_KEYWORDS = re.compile(
+    r"国家领导人|中央领导|党和国家领导|总书记|国家主席|国务院总理|副总理|政治局|常委|中央委员|元首|"
+    r"政变|夺权|颠覆|推翻|政权|独裁|专制|一党|民主化|宪政|体制改革|意识形态|"
+    r"共产党|中共|党中央|国民党|民进党|"
+    r"新疆|西藏|维吾尔|藏独|疆独|法轮功|宗教冲突|民族冲突|清真|"
+    r"台独|港独|两岸|台湾|香港|澳门|国安法|统一台湾|武统|"
+    r"外交部|制裁|断交|驱逐外交官|间谍|"
+    r"军演|导弹|核武|核弹|航母|解放军|军队调动|开战|战争|参战|军事部署|边境冲突|"
+    r"六四|天安门|游行|示威|抗议|维权|上访|镇压|戒严|"
+    r"美国总统|白宫|克里姆林宫|普京|特朗普|拜登|泽连斯基|金正恩"
+)
+
 GATE_SYSTEM = """你是内容审核员，判断一条待核查的网络传闻是否允许进入「公开信息核查」流程。只输出 JSON。
 
 拒绝（allowed=false）的两类：
@@ -55,12 +68,20 @@ def regex_check(text: str) -> GateResult | None:
     return None
 
 
+def keyword_check(text: str) -> GateResult | None:
+    """无大模型时的严格兜底：命中时政关键词即拒绝。"""
+    m = _POLITICS_KEYWORDS.search(text)
+    if m:
+        return GateResult(False, "politics", f"内容涉及「{m.group(0)}」相关的时政议题。未配置大模型时按关键词从严拦截。", by="keyword")
+    return None
+
+
 def check(text: str, llm: LLM | None) -> GateResult:
     r = regex_check(text)
     if r is not None:
         return r
     if llm is None:
-        return GateResult(True, "ok", "", by="regex")
+        return keyword_check(text) or GateResult(True, "ok", "", by="regex")
     try:
         data = llm.chat_json(GATE_SYSTEM, f"待核查内容：\n{text[:1200]}", max_tokens=200)
     except Exception:  # noqa: BLE001  审核模型失败时不拦截，交给后续流程
