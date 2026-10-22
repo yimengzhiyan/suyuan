@@ -4,6 +4,9 @@
 
 > 元宝搜索开发者征文大赛参赛作品。阶段：可演示原型。
 
+<img width="709" height="999" alt="qcclip-image-qHKnCG" src="https://github.com/user-attachments/assets/ebfd673a-7a27-40a1-ba04-51b153ca39f5" />
+
+
 ## 它做什么
 
 1. **拆主张**：用大模型把传闻拆成最多 3 条可公开核实的原子主张，每条生成核心 / 求证 / 备用三组检索词。
