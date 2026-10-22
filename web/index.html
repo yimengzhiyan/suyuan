@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>溯源 · 转发之前，先看看它从哪来</title>
+<meta name="description" content="溯源：基于腾讯元宝搜索的网络传闻求证与溯源工具。拆主张、五路检索、信源分级、溯源时间线、有据判定。">
+<meta name="theme-color" content="#f6f3ee">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101c2c'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23e8632b' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<a class="skip" href="#check">跳到核查</a>
+
+<header class="nav" id="nav">
+  <div class="nav__bg" aria-hidden="true"></div>
+  <div class="nav__inner wrap">
+    <a class="logo" href="#top" aria-label="溯源 首页">
+      <span class="logo__mark" aria-hidden="true"><svg viewBox="0 0 32 32" width="28" height="28"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="16" r="5.5" fill="none" stroke="var(--accent)" stroke-width="2.6"/><path d="M16 2v6M16 24v6M2 16h6M24 16h6" stroke="currentColor" stroke-width="1.6"/></svg></span>
+      <span class="logo__text">溯源</span>
+    </a>
+    <button class="nav__toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="navMenu">
+      <span class="sr">菜单</span><span class="burger" aria-hidden="true"><i></i><i></i></span>
+    </button>
+    <nav class="nav__menu" id="navMenu" aria-label="主导航">
+      <a href="#check">核查</a>
+      <a href="#how">工作原理</a>
+      <a href="#about">关于</a>
+      <a class="nav__gh" href="https://github.com/yimengzhiyan/suyuan" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero" aria-labelledby="heroTitle">
+    <div class="hero__bg" aria-hidden="true">
+      <span class="blob blob--a"></span>
+      <span class="blob blob--b"></span>
+      <span class="blob blob--c"></span>
+      <div class="marquee"><div class="marquee__track" id="marquee"></div></div>
+      <div class="grain"></div>
+    </div>
+    <div class="wrap hero__inner">
+      <p class="eyebrow hero__eyebrow"><span class="dot" aria-hidden="true"></span>网络传闻求证与溯源 · 基于腾讯元宝搜索</p>
+      <h1 class="hero__title" id="heroTitle" data-split>转发之前，<br>先看看它从哪来</h1>
+      <p class="hero__sub">把一条"网传"拆成可核实的主张，五路检索、信源分档、排出传播时间线，找到它最早出现的地方，再让大模型按硬规则给出有据可查的判定。</p>
+      <div class="hero__cta">
+        <a class="btn btn--primary" href="#check" data-scroll>开始核查<span class="btn__arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn--ghost" href="#how" data-scroll>它是怎么工作的</a>
+      </div>
+      <dl class="hero__facts">
+        <div><dt>5</dt><dd>路检索</dd></div>
+        <div><dt>5</dt><dd>档信源</dd></div>
+        <div><dt>7</dt><dd>步链条</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- CHECK -->
+  <section class="check" id="check" aria-labelledby="checkTitle">
+    <div class="wrap">
+      <header class="sec-head" data-reveal>
+        <p class="eyebrow">01 · 核查</p>
+        <h2 class="sec-title" id="checkTitle">贴进来一条"网传"</h2>
+      </header>
+
+      <form class="card composer" id="form" data-reveal novalidate>
+        <label class="composer__label" for="text">传闻原文</label>
+        <textarea id="text" name="text" rows="3" maxlength="1500" placeholder="例如：网传某部门已下发文件，从下月起……（群聊、朋友圈、热搜里看到的原话直接粘贴）" required></textarea>
+        <div class="composer__meta">
+          <div class="chips" id="chips" aria-label="示例"><span class="chips__label">试试：</span></div>
+          <span class="counter" id="counter">0 / 1500</span>
+        </div>
+
+        <div class="keys">
+          <button class="keys__toggle" id="keysToggle" type="button" aria-expanded="false" aria-controls="keysPanel">
+            <span class="keys__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><circle cx="8" cy="15" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M11 12l8-8M16 7l3 3M14 9l2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+            <span>你的 Key</span>
+            <span class="keys__state" id="keysState"></span>
+            <span class="keys__chev" aria-hidden="true">▾</span>
+          </button>
+          <div class="keys__panel" id="keysPanel" hidden>
+            <p class="keys__note"><span class="lock" aria-hidden="true">●</span>Key 只存在本浏览器（sessionStorage，关闭标签页即清除），只随本次请求发给服务器，不会被保存。</p>
+            <div class="fields">
+              <div class="field">
+                <label for="wsaKey">元宝搜索 Key</label>
+                <input id="wsaKey" type="password" autocomplete="off" spellcheck="false" placeholder="腾讯云 WSA API Key">
+              </div>
+              <div class="field">
+                <label for="preset">大模型</label>
+                <div class="select">
+                  <select id="preset">
+                    <option value="kimi">Kimi 开放平台 · kimi-k2.6</option>
+                    <option value="kimicode">Kimi Code · kimi-for-coding</option>
+                    <option value="deepseek">DeepSeek · deepseek-chat</option>
+                    <option value="hunyuan">腾讯混元 · hunyuan-turbos-latest</option>
+                    <option value="custom">自定义（OpenAI 兼容）</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field field--wide">
+                <label for="llmKey">大模型 Key</label>
+                <input id="llmKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+              </div>
+            </div>
+            <details class="adv">
+              <summary>高级设置</summary>
+              <div class="fields">
+                <div class="field">
+                  <label for="baseUrl">接口地址</label>
+                  <input id="baseUrl" type="url" spellcheck="false" placeholder="https://…/v1">
+                </div>
+                <div class="field">
+                  <label for="model">模型名</label>
+                  <input id="model" type="text" spellcheck="false" placeholder="model-name">
+                </div>
+                <label class="switch"><input id="thinkingOff" type="checkbox"><span class="switch__ui" aria-hidden="true"></span>关闭思考（推理模型更快）</label>
+                <label class="switch"><input id="useCache" type="checkbox" checked><span class="switch__ui" aria-hidden="true"></span>使用搜索缓存</label>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div class="composer__foot">
+          <p class="hint" id="hint" aria-live="polite"></p>
+          <button class="btn btn--primary btn--lg" id="submit" type="submit">开始核查<span class="btn__arrow" aria-hidden="true">→</span></button>
+        </div>
+      </form>
+
+      <!-- CHAIN -->
+      <div class="chain" id="chain" hidden>
+        <div class="chain__head">
+          <p class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span><span id="chainStatus">核查中</span></p>
+          <div class="chain__tools">
+            <span class="timer" id="timer">0.0s</span>
+            <button class="link-btn" id="cancel" type="button">停止</button>
+          </div>
+        </div>
+        <ol class="chain__track" id="chainTrack"></ol>
+        <div class="log" id="log" role="log" aria-live="polite" aria-label="核查日志"></div>
+      </div>
+
+      <div class="err" id="err" role="alert" hidden></div>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="result" id="result" aria-label="核查结果" hidden></section>
+
+  <!-- HOW -->
+  <section class="how" id="how" aria-labelledby="howTitle">
+    <div class="wrap">
+      <header class="sec-head" data-reveal>
+        <p class="eyebrow">02 · 工作原理</p>
+        <h2 class="sec-title" id="howTitle">一条传闻，走完七步</h2>
+      </header>
+      <div class="how__grid">
+        <figure class="how__fig card" data-reveal>
+          <img src="/static/assets/architecture.svg" alt="溯源核查链条架构图：粘贴传闻、拆主张、五路检索、信源分级、溯源时间线、原文深读、有据判定、延伸话题、核查卡" loading="lazy" width="1240" height="600">
+        </figure>
+        <div class="how__steps">
+          <article class="how__step" data-reveal style="--d:0">
+            <span class="how__n">01</span>
+            <h3>拆成主张</h3>
+            <p>大模型把一段网传拆成可核实的主张，抽出实体、时间、地点，并为每条主张生成核心、辟谣、替代三类检索词。</p>
+          </article>
+          <article class="how__step" data-reveal style="--d:1">
+            <span class="how__n">02</span>
+            <h3>五路检索，五档信源</h3>
+            <p>用腾讯元宝搜索多路召回，按域名白名单把来源分成政府/官方、中央媒体、主流媒体、门户/垂直、自媒体/未知五档。</p>
+          </article>
+          <article class="how__step" data-reveal style="--d:2">
+            <span class="how__n">03</span>
+            <h3>时间线与首发</h3>
+            <p>把带日期的证据排成传播时间线，补搜早期版本，找出搜索可见范围内的"传闻首发"；高等级原文会被抓取深读。</p>
+          </article>
+          <article class="how__step" data-reveal style="--d:3">
+            <span class="how__n">04</span>
+            <h3>按硬规则判定</h3>
+            <p>大模型只能依据编号证据作答，每个结论都要带引用；判定分属实、不实、部分属实、证据不足四类，最后生成核查卡。</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="about" id="about" aria-labelledby="aboutTitle">
+    <div class="wrap about__grid">
+      <figure class="about__poster" data-reveal>
+        <img src="/static/assets/poster.jpg" alt="溯源 项目海报" loading="lazy" width="1055" height="1491">
+      </figure>
+      <div class="about__body">
+        <header class="sec-head" data-reveal>
+          <p class="eyebrow">03 · 关于</p>
+          <h2 class="sec-title" id="aboutTitle">它能做什么，<br>不能做什么</h2>
+        </header>
+        <ul class="caveats">
+          <li data-reveal style="--d:0"><h3>信源等级是自建的</h3><p>元宝搜索标准版不返回权威度字段，所以"五档信源"来自我们维护的域名白名单。名单之外的网站一律归入"自媒体/未知"。</p></li>
+          <li data-reveal style="--d:1"><h3>"首发"只是可见范围内最早</h3><p>传闻首发指搜索引擎能看到的最早一条，不代表真正的源头；被删除、未收录的内容无从查起。</p></li>
+          <li data-reveal style="--d:2"><h3>搜不到短视频</h3><p>大量传闻诞生于短视频和私域群聊，这些内容不在检索范围内，结论需要结合常识判断。</p></li>
+          <li data-reveal style="--d:3"><h3>不保存任何 Key</h3><p>你填的 Key 只存在当前浏览器标签页，随请求发给服务器使用一次，服务器不落盘、不记录。</p></li>
+        </ul>
+        <a class="btn btn--ghost" href="https://github.com/yimengzhiyan/suyuan" target="_blank" rel="noopener" data-reveal>在 GitHub 查看源码<span class="btn__arrow" aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__inner">
+    <span>© 2026 溯源 · 转发之前，先看看它从哪来</span>
+    <a href="https://github.com/yimengzhiyan/suyuan" target="_blank" rel="noopener">github.com/yimengzhiyan/suyuan</a>
+  </div>
+</footer>
+
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>
