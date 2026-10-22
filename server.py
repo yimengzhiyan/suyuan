@@ -19,7 +19,7 @@ import threading
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -145,7 +145,13 @@ if WEB.exists():
 
 @app.get("/")
 def index():
+    """首页：给静态资源链接加上文件修改时间做版本号，改了 CSS/JS 后浏览器普通刷新即可生效。"""
     f = WEB / "index.html"
-    if f.exists():
-        return FileResponse(str(f))
-    return JSONResponse({"message": "前端尚未构建，接口可用：POST /api/verify"})
+    if not f.exists():
+        return JSONResponse({"message": "前端尚未构建，接口可用：POST /api/verify"})
+    html = f.read_text("utf-8")
+    for name in ("styles.css", "app.js"):
+        asset = WEB / name
+        if asset.exists():
+            html = html.replace(f"/static/{name}", f"/static/{name}?v={int(asset.stat().st_mtime)}")
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
