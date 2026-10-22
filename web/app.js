@@ -156,7 +156,7 @@
   var SKEY = 'suyuan.keys.v1';
 
   function autosize() { ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 2) + 'px'; $('#counter').textContent = ta.value.length + ' / 1500'; }
-  ta.addEventListener('input', function () { autosize(); $$('.chip').forEach(function (c) { c.classList.remove('is-on'); }); updateState(); });
+  ta.addEventListener('input', function () { autosize(); $$('.chip').forEach(function (c) { c.classList.remove('is-on'); }); hintMsg = ''; if (!ta.value.trim()) ocrNote.hidden = true; updateState(); });
   ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (!submitBtn.disabled) form.requestSubmit ? form.requestSubmit() : submitBtn.click(); } });
 
   function applyPreset() {
@@ -193,6 +193,8 @@
   keysToggle.addEventListener('click', function () { setKeysOpen(keysPanel.hidden); });
 
   var running = false;
+  var ocrBusy = false, hintMsg = '';   // hintMsg：截图识别的提示/错误，下次输入时清除
+  var shotBtn = $('#shotBtn'), ocrNote = $('#ocrNote');
   function needWsa() { return CFG.public || !CFG.server_search_key; }
   function updateState() {
     var hasWsa = !!F.wsa.value.trim(), hasLlm = !!F.llm.value.trim();
@@ -204,13 +206,16 @@
 
     var len = ta.value.trim().length; var block = false;
     if (needWsa() && !hasWsa) { block = true; msg = CFG.public ? '公开部署需要你自带 Key：请先在「你的 Key」里填写元宝搜索 Key。' : '服务器未配置搜索 Key，请填写你的元宝搜索 Key。'; }
-    else if (len < 2) { block = true; msg = '粘贴一条传闻，或点一个示例。⌘/Ctrl + Enter 也可以提交。'; warn = false; }
+    else if (ocrBusy) { block = true; msg = '正在识别截图里的文字…'; }
+    else if (len < 2) { block = true; msg = '粘贴一条传闻或聊天截图，或点一个示例。⌘/Ctrl + Enter 也可以提交。'; warn = false; }
     else if (F.noLlm.checked) { msg = '仅检索模式：只做检索与信源分级，不调用大模型，判定固定为"证据不足"。'; }
     else if ((CFG.public || !CFG.server_llm_key) && !hasLlm) { msg = '未填大模型 Key：将只做检索与信源分级，判定固定为"证据不足"。'; }
     else { msg = '预计 30~60 秒。核查过程会实时显示在下方。'; }
-    hint.textContent = msg;
-    hint.classList.toggle('is-warn', needWsa() && !hasWsa);
-    submitBtn.disabled = running || block;
+    var keyWarn = needWsa() && !hasWsa, ocrWarn = !!hintMsg && !keyWarn && !ocrBusy;
+    hint.textContent = ocrWarn ? hintMsg : msg;
+    hint.classList.toggle('is-warn', keyWarn || ocrWarn);
+    submitBtn.disabled = running || block || ocrBusy;
+    shotBtn.disabled = running || ocrBusy;
   }
 
   function loadMeta() {
@@ -225,7 +230,7 @@
         var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = ex.label || '示例';
         b.title = ex.text || '';
         b.addEventListener('click', function () {
-          ta.value = ex.text || ''; autosize(); updateState();
+          ta.value = ex.text || ''; hintMsg = ''; ocrNote.hidden = true; autosize(); updateState();
           $$('.chip').forEach(function (c) { c.classList.remove('is-on'); }); b.classList.add('is-on');
           ta.focus();
         });
@@ -235,18 +240,133 @@
   }
   autosize(); updateState(); loadMeta();
 
+  /* ---------------- 截图识别：上传 / 拖拽 / 粘贴 ---------------- */
+  var OCR_MAX = 6 * 1024 * 1024, TA_MAX = 1500;
+  var shot = $('#shot'), shotImg = $('#shotImg'), shotState = $('#shotState'), shotFile = $('#shotFile'), shotBtnText = $('#shotBtnText');
+  var shotUrl = null, ocrCtrl = null, ocrSeq = 0;
+
+  function clearShot() {
+    if (ocrCtrl) { ocrCtrl.abort(); ocrCtrl = null; }
+    if (ocrBusy) { ocrSeq++; setOcrBusy(false); }
+    if (shotUrl) { URL.revokeObjectURL(shotUrl); shotUrl = null; }
+    shotImg.removeAttribute('src'); shot.hidden = true; shot.classList.remove('is-busy', 'is-fail');
+  }
+  function setOcrBusy(on) {
+    ocrBusy = on;
+    shotBtnText.textContent = on ? '识别中…' : '上传截图';
+    shotBtn.setAttribute('aria-busy', on ? 'true' : 'false');
+    updateState();
+  }
+  function ocrFail(msg) {
+    hintMsg = msg; shot.classList.add('is-fail'); shotState.textContent = '未识别';
+  }
+  function pickImage(list) {
+    for (var i = 0; list && i < list.length; i++) {
+      var f = list[i]; if (f && /^image\//.test(f.type || '')) return f;
+    }
+    return null;
+  }
+  function recognize(file) {
+    if (!file || running || ocrBusy) return;
+    hintMsg = '';
+    if (!/^image\//.test(file.type || '')) { hintMsg = '只能识别图片，请换一张截图。'; updateState(); return; }
+    if (file.size > OCR_MAX) { hintMsg = '图片超过 6MB，裁剪或压缩一下再试。'; updateState(); return; }
+    clearShot();
+    shotUrl = URL.createObjectURL(file);   // 只用临时 URL 预览，不转 base64、不写入任何存储
+    shotImg.src = shotUrl; shotState.textContent = '识别中…';
+    shot.classList.add('is-busy'); shot.hidden = false;
+    if (!reduce && shot.animate) shot.animate([{ opacity: 0, transform: 'translateY(6px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: EASE });
+    setOcrBusy(true);
+    var seq = ++ocrSeq;
+    ocrCtrl = window.AbortController ? new AbortController() : null;
+    var fd = new FormData(); fd.append('file', file, file.name || 'screenshot.png');
+    fetch('/api/ocr', { method: 'POST', body: fd, signal: ocrCtrl ? ocrCtrl.signal : undefined }).then(function (res) {
+      return res.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (x) { j = null; }
+        if (!res.ok || !j || j.error) {
+          var m = j && (j.error || (typeof j.detail === 'string' ? j.detail : ''));
+          throw new Error(m || (res.status === 413 ? '图片太大了，请控制在 6MB 以内。' : '截图识别失败（服务器返回 ' + res.status + '）'));
+        }
+        return j;
+      });
+    }).then(function (j) {
+      if (seq !== ocrSeq) return;
+      var text = String(j.text || '').replace(/\r\n/g, '\n').trim();
+      if (!text && Array.isArray(j.lines)) text = j.lines.join('\n').trim();
+      if (!text) { ocrFail('没有识别到文字，换一张更清晰的截图试试'); return; }
+      var before = ta.value.replace(/\s+$/, '');
+      var merged = before ? before + '\n' + text : text, cut = merged.length > TA_MAX;
+      ta.value = cut ? merged.slice(0, TA_MAX) : merged;
+      shot.classList.remove('is-fail'); shotState.textContent = '已识别';
+      $$('.chip').forEach(function (c) { c.classList.remove('is-on'); });
+      var sec = Number(j.elapsed);
+      ocrNote.textContent = '来自截图识别' + (isFinite(sec) && sec > 0 ? '，用时 ' + sec.toFixed(1) + ' 秒' : '') + '，可以先改一改再核查' + (cut ? '（超出 1500 字的部分已截掉）' : '');
+      autosize();
+      ta.dispatchEvent(new Event('input', { bubbles: true }));   // 走一遍现有的输入状态更新
+      ocrNote.hidden = false;
+      ta.focus({ preventScroll: true });
+      try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (x) { }
+    }).catch(function (err) {
+      if (seq !== ocrSeq || (err && err.name === 'AbortError')) return;
+      ocrFail((err && err.message && err.message !== 'Failed to fetch') ? err.message : '截图识别失败，请检查网络后重试。');
+    }).then(function () {
+      if (seq !== ocrSeq) return;
+      ocrCtrl = null; shot.classList.remove('is-busy');
+      setOcrBusy(false);
+    });
+  }
+
+  shotBtn.addEventListener('click', function () { if (!shotBtn.disabled) shotFile.click(); });
+  shotFile.addEventListener('change', function () { var f = pickImage(shotFile.files); shotFile.value = ''; if (f) recognize(f); });
+  $('#shotX').addEventListener('click', function () { clearShot(); updateState(); ta.focus({ preventScroll: true }); });
+
+  // 拖拽到整个输入卡
+  function hasFiles(e) { var t = e.dataTransfer && e.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, 'Files') >= 0; }
+  var dragDepth = 0;
+  function setDrop(on) { form.classList.toggle('is-drop', on); }
+  form.addEventListener('dragenter', function (e) { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; if (!running && !ocrBusy) setDrop(true); });
+  form.addEventListener('dragover', function (e) { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = (running || ocrBusy) ? 'none' : 'copy'; });
+  form.addEventListener('dragleave', function (e) { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) setDrop(false); });
+  form.addEventListener('drop', function (e) {
+    if (!hasFiles(e)) return; e.preventDefault(); e.stopPropagation(); dragDepth = 0; setDrop(false);
+    var f = pickImage(e.dataTransfer.files);
+    if (f) recognize(f); else { hintMsg = '只能识别图片，请换一张截图。'; updateState(); }
+  });
+  // 文件落在输入卡外面时，别让浏览器直接打开图片离开页面
+  document.addEventListener('dragover', function (e) { if (hasFiles(e)) e.preventDefault(); });
+  document.addEventListener('drop', function (e) { if (hasFiles(e)) { e.preventDefault(); dragDepth = 0; setDrop(false); } });
+
+  // 页面任意位置粘贴图片
+  document.addEventListener('paste', function (e) {
+    var cd = e.clipboardData; if (!cd) return;
+    var file = null, items = cd.items || [];
+    for (var i = 0; i < items.length && !file; i++) {
+      if (items[i].kind === 'file' && /^image\//.test(items[i].type)) file = items[i].getAsFile();
+    }
+    if (!file) file = pickImage(cd.files);
+    if (!file) return;
+    // 在输入框里粘贴、且剪贴板同时带有文字（例如从网页复制图文）时，按普通文字粘贴处理
+    var t = e.target, editable = t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable);
+    if (editable && (cd.getData('text/plain') || '').trim()) return;
+    e.preventDefault();
+    if (running || ocrBusy) return;
+    if (!form.contains(document.activeElement)) scrollToEl(form, 'center');
+    recognize(file);
+  });
+
   /* ---------------- 核查链条 ---------------- */
   var STEPS = [
-    ['claims', '拆主张'], ['search', '五路检索'], ['timeline', '溯源时间线'], ['deepread', '原文深读'],
+    ['gate', '安全检查'], ['claims', '拆主张'], ['search', '五路检索'], ['timeline', '溯源时间线'], ['deepread', '原文深读'],
     ['judge', '有据判定'], ['extend', '延伸话题'], ['done', '核查卡']
   ];
   var chain = $('#chain'), track = $('#chainTrack'), logEl = $('#log'), errEl = $('#err'), resultEl = $('#result');
   var cur = -1, t0 = 0, timerId = 0, ctrl = null;
   var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var CROSS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>';
 
   function buildChain() {
     track.innerHTML = STEPS.map(function (s, i) {
-      return '<li class="node" data-step="' + s[0] + '"><span class="node__dot"><span class="node__num">' + (i + 1) + '</span><span class="node__check">' + CHECK_SVG + '</span></span>' +
+      return '<li class="node" data-step="' + s[0] + '"><span class="node__dot"><span class="node__num">' + (i + 1) + '</span><span class="node__check">' + CHECK_SVG + '</span>' + (s[0] === 'gate' ? '<span class="node__x">' + CROSS_SVG + '</span>' : '') + '</span>' +
         '<span class="node__label">' + s[1] + '</span><span class="node__line" aria-hidden="true"><i></i></span></li>';
     }).join('');
     cur = -1;
@@ -287,7 +407,7 @@
   }
   function beginRun() {
     errEl.hidden = true; resultEl.hidden = true; resultEl.innerHTML = '';
-    chain.hidden = false; chain.classList.remove('is-done', 'is-fail');
+    chain.hidden = false; chain.classList.remove('is-done', 'is-fail', 'is-refused');
     $('#chainStatus').textContent = '核查中';
     buildChain(); logEl.innerHTML = ''; startTimer(); setRunning(true);
     setTimeout(function () { scrollToEl(chain, 'center'); }, 60);
@@ -298,6 +418,17 @@
     log(msg, 'is-err');
     errEl.innerHTML = '<strong>核查没有完成</strong>' + esc(msg);
     errEl.hidden = false;
+  }
+  var CAT_NAMES = { privacy: '个人隐私', politics: '敏感时政' };
+  function refuse(d) {
+    stopTimer(); setRunning(false);
+    paint(-1);   // 后续节点全部保持灰色
+    var g = $('.node[data-step="gate"]', track);
+    if (g) { g.classList.add('is-refused'); g.setAttribute('aria-label', '安全检查：未通过'); }
+    chain.classList.add('is-refused'); $('#chainStatus').textContent = '未进入核查';
+    var cat = CAT_NAMES[d.category] || '';
+    log('安全检查未通过' + (cat ? '（' + cat + '）' : '') + '：' + (d.reason || d.error || '内容不在核查范围'), 'is-err');
+    renderRefusal(d);
   }
   function finish(report) {
     stopTimer(); setRunning(false);
@@ -343,7 +474,7 @@
       return readSSE(res, function (ev, data) {
         if (ev === 'progress') { setStep(data.step); log(data.msg || '', data.step ? 'is-step' : ''); }
         else if (ev === 'result') { gotEnd = true; finish(data); }
-        else if (ev === 'error') { gotEnd = true; fail((data && data.error) || '未知错误'); }
+        else if (ev === 'error') { gotEnd = true; if (data && data.refused) refuse(data); else fail((data && data.error) || '未知错误'); }
       });
     }).then(function () {
       if (!gotEnd) fail('连接意外中断，请重试。');
@@ -597,6 +728,35 @@
     setTimeout(function () { scrollToEl(resultEl.querySelector('.verdict') || resultEl); }, reduce ? 0 : 450);
   }
 
+  function renderRefusal(d) {
+    var cat = CAT_NAMES[d.category] || (d.category ? String(d.category) : '');
+    resultEl.innerHTML = '<div class="wrap"><article class="card refusal" data-reveal id="rRefusal" aria-labelledby="refusalTitle">' +
+      '<span class="refusal__stamp" aria-hidden="true"><span>不核查</span></span>' +
+      '<p class="verdict__label">安全检查</p>' +
+      '<h2 class="refusal__title" id="refusalTitle">这条不核查</h2>' +
+      '<p class="refusal__msg">' + esc(d.error || '这条内容不在溯源的核查范围内。') + '</p>' +
+      '<dl class="refusal__meta">' +
+      (cat ? '<div><dt>类别</dt><dd>' + esc(cat) + '</dd></div>' : '') +
+      (d.reason ? '<div><dt>原因</dt><dd>' + esc(d.reason) + '</dd></div>' : '') +
+      '</dl>' +
+      '<p class="refusal__note">在检索之前就已拦下，没有消耗任何搜索额度。</p>' +
+      '<div class="refusal__btns"><button type="button" class="btn btn--primary btn--sm" id="refusalReset">换一条<span class="btn__arrow" aria-hidden="true">↑</span></button></div>' +
+      '</article></div>';
+    resultEl.hidden = false;
+    $('#refusalReset').addEventListener('click', function () {
+      ta.value = ''; hintMsg = ''; ocrNote.hidden = true; clearShot();
+      $$('.chip').forEach(function (c) { c.classList.remove('is-on'); });
+      autosize(); updateState();
+      scrollToEl(form, 'start');
+      setTimeout(function () {
+        resultEl.hidden = true; resultEl.innerHTML = ''; chain.hidden = true;
+        ta.focus({ preventScroll: true });
+      }, reduce ? 0 : 500);
+    });
+    observe(resultEl);
+    setTimeout(function () { scrollToEl($('#rRefusal'), 'center'); }, reduce ? 0 : 450);
+  }
+
   function download(text, name, type) {
     var url = URL.createObjectURL(new Blob([text], { type: type }));
     var a = document.createElement('a'); a.href = url; a.download = name;
@@ -634,7 +794,18 @@
 
   /* ---------------- 演示模式：?demo=1 直接渲染样例；?demo=play 回放链条 ---------------- */
   var demo = new URLSearchParams(location.search).get('demo');
-  if (demo) {
+  if (demo === 'refuse') {
+    // ?demo=refuse：回放一次被安全检查拦下的流程（假数据，不请求后端）
+    ta.value = '网传某明星出轨被拍，对方是其公司高管。'; autosize(); updateState();
+    beginRun(); $('#cancel').hidden = true;
+    setStep('start'); log('开始核查', 'is-step');
+    setTimeout(function () {
+      setStep('gate'); log('安全检查…', 'is-step');
+      setTimeout(function () {
+        refuse({ refused: true, category: 'privacy', error: '这条内容涉及具体个人的隐私或指控。溯源只核查公开的公共信息，不对个人做调查，也不会去搜索任何人的个人信息。', reason: '（演示）涉及具体公众人物的私生活与感情道德指控。' });
+      }, 900);
+    }, 500);
+  } else if (demo) {
     fetch('/static/dev/sample.json').then(function (r) { return r.json(); }).then(function (r) {
       ta.value = r.input_text || ''; autosize(); updateState();
       beginRun(); $('#cancel').hidden = true;
@@ -643,7 +814,7 @@
         log('（演示模式：载入 web/dev/sample.json）');
         finish(r); return;
       }
-      var steps = [['开始核查', 'start'], ['抽取可核实主张…', 'claims']];
+      var steps = [['开始核查', 'start'], ['安全检查…', 'gate'], ['抽取可核实主张…', 'claims']];
       (r.claims || []).forEach(function (c, i) { steps.push(['主张 ' + (i + 1) + '：' + c.text, null]); });
       steps.push(['主张 1：多路检索（混合 / 新闻 / 政务 / 辟谣）…', 'search'], ['构建溯源时间线…', 'timeline'], ['主张 1：深读原文…', 'deepread'],
         ['大模型基于证据判定…', 'judge'], ['生成延伸话题…', 'extend'], ['完成', 'done']);

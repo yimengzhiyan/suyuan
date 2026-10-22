@@ -44,7 +44,7 @@
     <div class="wrap hero__inner">
       <p class="eyebrow hero__eyebrow"><span class="dot" aria-hidden="true"></span>网络传闻求证与溯源 · 基于腾讯元宝搜索</p>
       <h1 class="hero__title" id="heroTitle" data-split>转发之前，<br>先看看它从哪来</h1>
-      <p class="hero__sub">把一条"网传"拆成可核实的主张，五路检索、信源分档、排出传播时间线，找到它最早出现的地方，再让大模型按硬规则给出有据可查的判定。</p>
+      <p class="hero__sub">把一条"网传"拆成可核实的主张，五路检索、信源分档、排出传播时间线，找到它最早出现的地方，再让大模型按硬规则给出有据可查的判定。手边只有聊天截图？直接粘贴进来就行。</p>
       <div class="hero__cta">
         <a class="btn btn--primary" href="#check" data-scroll>开始核查<span class="btn__arrow" aria-hidden="true">→</span></a>
         <a class="btn btn--ghost" href="#how" data-scroll>它是怎么工作的</a>
@@ -66,8 +66,23 @@
       </header>
 
       <form class="card composer" id="form" data-reveal novalidate>
-        <label class="composer__label" for="text">传闻原文</label>
+        <div class="composer__drop" aria-hidden="true"><span>松开识别截图</span></div>
+        <div class="composer__top">
+          <label class="composer__label" for="text">传闻原文</label>
+          <button class="btn btn--ghost btn--sm shot-btn" id="shotBtn" type="button" aria-describedby="shotTip">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.8" fill="currentColor"/><path d="M4.5 17l5-5 3.5 3.5 2.5-2.5 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <span id="shotBtnText">上传截图</span>
+          </button>
+          <span class="sr" id="shotTip">也可以把截图拖到这里，或直接 Ctrl/⌘ + V 粘贴</span>
+          <input class="sr" id="shotFile" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+        </div>
+        <div class="shot" id="shot" hidden>
+          <img id="shotImg" alt="上传的截图缩略图">
+          <span class="shot__state" id="shotState"></span>
+          <button class="shot__x" id="shotX" type="button" aria-label="移除截图">×</button>
+        </div>
         <textarea id="text" name="text" rows="3" maxlength="1500" placeholder="例如：网传某部门已下发文件，从下月起……（群聊、朋友圈、热搜里看到的原话直接粘贴）" required></textarea>
+        <p class="ocr-note" id="ocrNote" aria-live="polite" hidden></p>
         <div class="composer__meta">
           <div class="chips" id="chips" aria-label="示例"><span class="chips__label">试试：</span></div>
           <span class="counter" id="counter">0 / 1500</span>
@@ -154,7 +169,7 @@
     <div class="wrap">
       <header class="sec-head" data-reveal>
         <p class="eyebrow">02 · 工作原理</p>
-        <h2 class="sec-title" id="howTitle">一条传闻，走完七步</h2>
+        <h2 class="sec-title" id="howTitle">一条传闻，走完八步</h2>
       </header>
       <div class="how__grid">
         <figure class="how__fig card" data-reveal>
@@ -202,6 +217,8 @@
           <li data-reveal style="--d:1"><h3>"首发"只是可见范围内最早</h3><p>传闻首发指搜索引擎能看到的最早一条，不代表真正的源头；被删除、未收录的内容无从查起。</p></li>
           <li data-reveal style="--d:2"><h3>搜不到短视频</h3><p>大量传闻诞生于短视频和私域群聊，这些内容不在检索范围内，结论需要结合常识判断。</p></li>
           <li data-reveal style="--d:3"><h3>不保存任何 Key</h3><p>你填的 Key 只存在当前浏览器标签页，随请求发给服务器使用一次，服务器不落盘、不记录。</p></li>
+          <li data-reveal style="--d:4"><h3>有两类内容不核查</h3><p>不核查涉及具体个人隐私的内容和敏感时政议题，这两类在检索前就会被拦下。</p></li>
+          <li data-reveal style="--d:5"><h3>截图识别不外传</h3><p>截图识别在服务器本地完成，图片不保存。</p></li>
         </ul>
         <a class="btn btn--ghost" href="https://github.com/yimengzhiyan/suyuan" target="_blank" rel="noopener" data-reveal>在 GitHub 查看源码<span class="btn__arrow" aria-hidden="true">↗</span></a>
       </div>

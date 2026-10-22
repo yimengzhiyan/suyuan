@@ -35,23 +35,34 @@ def recognize(data: bytes) -> dict:
 
     arr = np.asarray(img)[:, :, ::-1]  # RapidOCR 期望 BGR
     res, _ = _get_engine()(arr)
-    lines: list[str] = []
+    items = []
     for item in res or []:
         box, text, score = item[0], str(item[1]).strip(), float(item[2])
         if text and score >= 0.5:
-            lines.append(text)
-    text = _join(lines)
+            ys = [pt[1] for pt in box]
+            xs = [pt[0] for pt in box]
+            items.append({"text": text, "top": min(ys), "bottom": max(ys), "left": min(xs)})
+    items.sort(key=lambda d: (d["top"], d["left"]))
+    lines = [d["text"] for d in items]
+    text = _join(items)
     return {"text": text, "lines": lines, "elapsed": round(time.time() - t0, 2)}
 
 
-def _join(lines: list[str]) -> str:
-    """把 OCR 的逐行结果拼成段落：上一行不以句末标点结束就直接接上。"""
+def _join(items: list[dict]) -> str:
+    """把 OCR 的逐行结果拼成段落。
+
+    聊天截图里一个气泡是一段。两行之间的垂直间距明显大于行高（换了气泡或换了段）就换行，
+    否则直接接上；上一行以句末标点结束时也换行。
+    """
     out = ""
-    for ln in lines:
-        if not out:
-            out = ln
-        elif out[-1] in "。！？!?；;…":
-            out += "\n" + ln
+    prev = None
+    for d in items:
+        if prev is None:
+            out = d["text"]
         else:
-            out += ln
+            line_h = max(prev["bottom"] - prev["top"], 1)
+            gap = d["top"] - prev["bottom"]
+            new_para = gap > 0.8 * line_h or out[-1] in "。！？!?；;…"
+            out += ("\n" if new_para else "") + d["text"]
+        prev = d
     return out
