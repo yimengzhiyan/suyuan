@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 一键部署（在项目目录执行，需要 sudo）：bash deploy/install.sh 你的域名
-# 做的事：1) 以 systemd 运行 Streamlit（公开模式，监听本机 8501）
+# 做的事：1) 以 systemd 运行应用（公开模式，uvicorn 监听本机 8601）
 #        2) 安装 Caddy 做 HTTPS 反代，自动申请证书
 #        3) 防火墙放行 80/443（如果启用了 firewalld）
 set -euo pipefail
@@ -9,10 +9,10 @@ APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_USER="$(id -un)"
 
 echo "==> 1/4 检查虚拟环境"
-[ -x "$APP_DIR/.venv/bin/streamlit" ] || { python3 -m venv "$APP_DIR/.venv"; "$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt"; }
+[ -x "$APP_DIR/.venv/bin/uvicorn" ] || { python3 -m venv "$APP_DIR/.venv"; "$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt"; }
 mkdir -p "$APP_DIR/.cache"
 
-echo "==> 2/4 写入 systemd 服务 suyuan.service"
+echo "==> 2/4 写入 systemd 服务 suyuan.service（uvicorn，监听本机 8601）"
 sudo tee /etc/systemd/system/suyuan.service >/dev/null <<UNIT
 [Unit]
 Description=Suyuan rumor verification web app
@@ -23,7 +23,7 @@ User=$RUN_USER
 WorkingDirectory=$APP_DIR
 Environment=SUYUAN_PUBLIC=1
 Environment=SUYUAN_CACHE_DIR=$APP_DIR/.cache
-ExecStart=$APP_DIR/.venv/bin/streamlit run app.py --server.headless=true --server.address=127.0.0.1 --server.port=8501 --browser.gatherUsageStats=false
+ExecStart=$APP_DIR/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8601 --proxy-headers
 Restart=always
 RestartSec=3
 
@@ -31,9 +31,10 @@ RestartSec=3
 WantedBy=multi-user.target
 UNIT
 sudo systemctl daemon-reload
-sudo systemctl enable --now suyuan
+sudo systemctl enable suyuan >/dev/null
+sudo systemctl restart suyuan
 sleep 5
-curl -sf http://127.0.0.1:8501/_stcore/health >/dev/null && echo "    应用已启动" || { echo "应用启动失败，看 journalctl -u suyuan"; exit 1; }
+curl -sf http://127.0.0.1:8601/api/config >/dev/null && echo "    应用已启动" || { echo "应用启动失败，看 journalctl -u suyuan"; exit 1; }
 
 echo "==> 3/4 安装 Caddy"
 if ! command -v caddy >/dev/null; then
@@ -48,7 +49,7 @@ id caddy >/dev/null 2>&1 || sudo useradd --system --home /var/lib/caddy --shell 
 sudo chown -R caddy:caddy /var/lib/caddy
 sudo tee /etc/caddy/Caddyfile >/dev/null <<CADDY
 $DOMAIN {
-    reverse_proxy 127.0.0.1:8501
+    reverse_proxy 127.0.0.1:8601
 }
 CADDY
 sudo tee /etc/systemd/system/caddy.service >/dev/null <<UNIT
@@ -70,7 +71,8 @@ LimitNOFILE=1048576
 WantedBy=multi-user.target
 UNIT
 sudo systemctl daemon-reload
-sudo systemctl enable --now caddy
+sudo systemctl enable caddy >/dev/null
+sudo systemctl restart caddy
 
 echo "==> 4/4 防火墙"
 if systemctl is-active --quiet firewalld; then

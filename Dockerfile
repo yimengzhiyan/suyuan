@@ -5,5 +5,5 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
 RUN mkdir -p /app/.cache
-EXPOSE 8501
-CMD ["streamlit", "run", "app.py", "--server.headless=true", "--server.address=0.0.0.0", "--server.port=8501", "--browser.gatherUsageStats=false"]
+EXPOSE 8601
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8601", "--proxy-headers"]

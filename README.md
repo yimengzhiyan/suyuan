@@ -51,8 +51,8 @@ cp .env.example .env
 ## 运行
 
 ```bash
-# 网页版
-.venv/bin/streamlit run app.py
+# 网页版（FastAPI + 自定义前端，打开 http://127.0.0.1:8601 ）
+.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8601
 
 # 命令行：进度到 stderr，核查卡 Markdown 到 stdout
 .venv/bin/python cli.py "网传：2025年起全国取消高速公路节假日免费通行政策"
@@ -75,7 +75,7 @@ cp .env.example .env
 | `suyuan/verify.py` | 核心流水线与数据结构（Evidence / TimelineItem / Report） |
 | `suyuan/llm.py` | OpenAI 兼容大模型客户端，稳健 JSON 解析与修复重试 |
 | `suyuan/report.py` | Markdown 核查卡 |
-| `suyuan/ui.py` / `app.py` | Streamlit 网页 |
+| `server.py` / `web/` | 网页：FastAPI 接口（SSE 实时进度）+ 纯 HTML/CSS/JS 前端 |
 | `cli.py` | 命令行入口 |
 | `eval/run_eval.py` | 评测脚本（准确率、官方信源命中率、耗时、不联网基线） |
 | `eval/build_dataset.py` | 评测集采集与改写脚本 |

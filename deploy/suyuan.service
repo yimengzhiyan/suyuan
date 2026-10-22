@@ -7,7 +7,7 @@ After=network.target
 User=www-data
 WorkingDirectory=/opt/suyuan
 Environment=SUYUAN_PUBLIC=1
-ExecStart=/opt/suyuan/.venv/bin/streamlit run app.py --server.headless=true --server.address=127.0.0.1 --server.port=8501 --browser.gatherUsageStats=false
+ExecStart=/opt/suyuan/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8601 --proxy-headers
 Restart=always
 
 [Install]

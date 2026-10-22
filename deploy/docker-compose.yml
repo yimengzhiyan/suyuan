@@ -5,7 +5,7 @@ services:
     container_name: suyuan
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8501:8501"   # 只监听本机，由 nginx / caddy 反代对外
+      - "127.0.0.1:8601:8601"   # 只监听本机，由 nginx / caddy 反代对外
     environment:
       SUYUAN_PUBLIC: "1"        # 公开模式：不用服务器 key，访问者自己填
     volumes:

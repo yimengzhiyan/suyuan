@@ -6,7 +6,7 @@
 
 ```bash
 git clone https://github.com/yimengzhiyan/suyuan.git /opt/suyuan && cd /opt/suyuan/deploy
-docker compose up -d --build          # 应用监听 127.0.0.1:8501
+docker compose up -d --build          # 应用监听 127.0.0.1:8601
 # 安装 caddy 后，把 Caddyfile 里的域名改成你的，复制到 /etc/caddy/Caddyfile，然后
 systemctl reload caddy
 ```
@@ -19,17 +19,6 @@ systemctl reload caddy
 
 ## 注意
 
-- Streamlit 依赖 WebSocket，反代必须转发 `Upgrade` / `Connection` 头，配置里已经写好。
+- 核查进度走 SSE 长连接，nginx 需要 `proxy_buffering off`，Caddy 默认即可。
 - 服务器在中国大陆的话，域名需要完成 ICP 备案才能通过 80/443 端口访问；海外服务器不需要。
 - 搜索缓存在容器内 `/app/.cache`，已挂成卷，重启不丢。
-
-## 新版前端（FastAPI + web/）
-
-`server.py` 提供接口并托管 `web/` 下的自定义前端，systemd 单元见 `suyuan-web.service` 的写法：
-
-```
-ExecStart=/opt/suyuan/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8601 --proxy-headers
-Environment=SUYUAN_PUBLIC=1
-```
-
-Caddy 把根路径反代到 8601，`/classic` 保留给 Streamlit 版（需加 `--server.baseUrlPath=classic` 启动）。
