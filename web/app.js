@@ -144,7 +144,7 @@
   var form = $('#form'), ta = $('#text'), submitBtn = $('#submit'), hint = $('#hint');
   var F = {
     wsa: $('#wsaKey'), preset: $('#preset'), llm: $('#llmKey'), base: $('#baseUrl'), model: $('#model'),
-    think: $('#thinkingOff'), cache: $('#useCache')
+    think: $('#thinkingOff'), cache: $('#useCache'), noLlm: $('#noLlm')
   };
   var PRESETS = {
     kimi: ['https://api.moonshot.cn/v1', 'kimi-k2.6', true],
@@ -171,7 +171,7 @@
       F.wsa.value = s.wsa || ''; F.llm.value = s.llm || '';
       if (s.preset && (PRESETS[s.preset] || s.preset === 'custom')) F.preset.value = s.preset;
       F.base.value = s.base || ''; F.model.value = s.model || '';
-      F.think.checked = !!s.think; F.cache.checked = s.cache !== false;
+      F.think.checked = !!s.think; F.cache.checked = s.cache !== false; F.noLlm.checked = !!s.noLlm;
       if (!F.base.value && PRESETS[F.preset.value]) applyPreset();
     } else { applyPreset(); }
   }
@@ -179,12 +179,13 @@
     try {
       sessionStorage.setItem(SKEY, JSON.stringify({
         wsa: F.wsa.value, llm: F.llm.value, preset: F.preset.value, base: F.base.value,
-        model: F.model.value, think: F.think.checked, cache: F.cache.checked
+        model: F.model.value, think: F.think.checked, cache: F.cache.checked, noLlm: F.noLlm.checked
       }));
     } catch (e) { /* 隐私模式等情况下忽略 */ }
   }
   [F.wsa, F.llm, F.base, F.model].forEach(function (i) { i.addEventListener('input', function () { save(); updateState(); }); });
   [F.think, F.cache].forEach(function (i) { i.addEventListener('change', save); });
+  F.noLlm.addEventListener('change', function () { save(); updateState(); });
   load();
 
   var keysToggle = $('#keysToggle'), keysPanel = $('#keysPanel');
@@ -204,7 +205,8 @@
     var len = ta.value.trim().length; var block = false;
     if (needWsa() && !hasWsa) { block = true; msg = CFG.public ? '公开部署需要你自带 Key：请先在「你的 Key」里填写元宝搜索 Key。' : '服务器未配置搜索 Key，请填写你的元宝搜索 Key。'; }
     else if (len < 2) { block = true; msg = '粘贴一条传闻，或点一个示例。⌘/Ctrl + Enter 也可以提交。'; warn = false; }
-    else if ((CFG.public || !CFG.server_llm_key) && !hasLlm) { msg = '未填大模型 Key：将只用规则做保守判定，结论可能为"证据不足"。'; }
+    else if (F.noLlm.checked) { msg = '仅检索模式：只做检索与信源分级，不调用大模型，判定固定为"证据不足"。'; }
+    else if ((CFG.public || !CFG.server_llm_key) && !hasLlm) { msg = '未填大模型 Key：将只做检索与信源分级，判定固定为"证据不足"。'; }
     else { msg = '预计 30~60 秒。核查过程会实时显示在下方。'; }
     hint.textContent = msg;
     hint.classList.toggle('is-warn', needWsa() && !hasWsa);
@@ -320,7 +322,8 @@
       llm_api_key: llmKey,
       llm_model: llmKey ? F.model.value.trim() : '',
       thinking_off: llmKey ? F.think.checked : false,
-      use_cache: F.cache.checked
+      use_cache: F.cache.checked,
+      no_llm: F.noLlm.checked
     };
     beginRun();
     ctrl = window.AbortController ? new AbortController() : null;

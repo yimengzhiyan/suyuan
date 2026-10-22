@@ -68,6 +68,7 @@ class VerifyBody(BaseModel):
     llm_model: str = ""
     thinking_off: bool = False
     use_cache: bool = True
+    no_llm: bool = False  # 仅检索：不调用大模型，只做检索与信源分级
 
 
 app = FastAPI(title="溯源", docs_url=None, redoc_url=None)
@@ -103,7 +104,7 @@ def verify(body: VerifyBody, request: Request):
         try:
             search = YuanbaoSearch(api_key=wsa_key, use_cache=body.use_cache)
             llm = None
-            if llm_key:
+            if llm_key and not body.no_llm:
                 llm = LLM(base_url=body.llm_base_url.strip() or None, api_key=llm_key,
                           model=body.llm_model.strip() or None, thinking_off=body.thinking_off)
 
