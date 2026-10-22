@@ -1,0 +1,4 @@
+{"_comment": "评测集格式示例：每行一个 JSON，字段 id/text/label/source。label 只能是「属实」或「不实」，source 填人工标注所依据的权威来源 URL。以下三行是占位样例，请复制为 eval/dataset.jsonl 后替换成真实传闻。带 _comment 的行会被脚本跳过。"}
+{"id": "demo-001", "text": "【示例传闻，请替换】网传某市自下月起全面禁止电动自行车上路。", "label": "不实", "source": "https://example.com/replace-with-official-source-1"}
+{"id": "demo-002", "text": "【示例传闻，请替换】某部门发布通知，明年起法定节假日新增一天。", "label": "属实", "source": "https://example.com/replace-with-official-source-2"}
+{"id": "demo-003", "text": "【示例传闻，请替换】吃某种水果可以治愈某种慢性病，医院都不告诉你。", "label": "不实", "source": "https://example.com/replace-with-official-source-3"}
