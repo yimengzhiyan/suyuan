@@ -32,16 +32,50 @@ def html(s: str) -> None:
     st.markdown(s, unsafe_allow_html=True)
 
 
-# ---- 侧栏：配置状态 --------------------------------------------------------
-search_key_ok = bool(os.getenv("TENCENTCLOUD_WSA_APIKEY"))
-llm_key_ok = bool(os.getenv("LLM_API_KEY"))
+# ---- 侧栏：API Key 与配置 ---------------------------------------------------
+# 公开部署时设 SUYUAN_PUBLIC=1：不使用服务器上的 key，访问者必须填自己的。
+# 本地运行时服务器 .env 里的 key 作为默认值，侧栏填了就覆盖。
+PUBLIC_MODE = os.getenv("SUYUAN_PUBLIC", "").lower() in ("1", "true", "yes")
+_server_search_key = "" if PUBLIC_MODE else os.getenv("TENCENTCLOUD_WSA_APIKEY", "")
+_server_llm_key = "" if PUBLIC_MODE else os.getenv("LLM_API_KEY", "")
+
+LLM_PRESETS = {
+    "Kimi 开放平台": ("https://api.moonshot.cn/v1", "kimi-k2.6", True),
+    "Kimi Code 会员": ("https://api.kimi.com/coding/v1", "kimi-for-coding", True),
+    "DeepSeek": ("https://api.deepseek.com", "deepseek-chat", False),
+    "腾讯混元": ("https://api.hunyuan.cloud.tencent.com/v1", "hunyuan-turbos-latest", False),
+    "自定义（OpenAI 兼容）": (os.getenv("LLM_BASE_URL") or DEFAULT_BASE_URL, os.getenv("LLM_MODEL") or DEFAULT_MODEL, False),
+}
+
+
+def _apply_preset() -> None:
+    base, model, think_off = LLM_PRESETS[st.session_state["llm_preset"]]
+    st.session_state["llm_base_url"] = base
+    st.session_state["llm_model"] = model
+    st.session_state["llm_thinking_off"] = think_off
+
+
 with st.sidebar:
-    st.subheader("配置")
-    use_cache = st.toggle("搜索缓存", value=True, help="相同查询读本地缓存，不重复消耗额度")
-    no_llm = st.toggle("仅检索", value=not llm_key_ok, help="不调用大模型，判定固定为「证据不足」")
-    st.caption(f"元宝搜索：{'✅ 已配置' if search_key_ok else '❌ 未配置'}")
-    st.caption(f"大模型：{'✅ 已配置' if llm_key_ok else '❌ 未配置'} · {os.getenv('LLM_MODEL') or DEFAULT_MODEL}")
-    st.caption(f"接口：{os.getenv('LLM_BASE_URL') or DEFAULT_BASE_URL}")
+    st.subheader("你的 API Key")
+    st.caption("只保存在当前浏览器会话里，不写入服务器，刷新页面即清空。")
+    user_search_key = st.text_input("元宝搜索 API Key", type="password", key="wsa_key",
+                                    placeholder="sk-…（元宝搜索控制台创建）")
+    st.selectbox("大模型", list(LLM_PRESETS), key="llm_preset", on_change=_apply_preset)
+    if "llm_base_url" not in st.session_state:
+        _apply_preset()
+    user_llm_key = st.text_input("大模型 API Key", type="password", key="llm_key", placeholder="sk-…")
+    with st.expander("大模型高级设置", expanded=False):
+        st.text_input("接口地址", key="llm_base_url")
+        st.text_input("模型名", key="llm_model")
+        st.checkbox("关闭思考模式（推理模型建议勾选）", key="llm_thinking_off")
+    st.divider()
+    use_cache = st.toggle("搜索缓存", value=True, help="相同查询读服务器本地缓存，不重复消耗额度")
+    no_llm = st.toggle("仅检索", value=False, help="不调用大模型，只做检索与信源分级，判定固定为「证据不足」")
+
+search_key = (user_search_key or "").strip() or _server_search_key
+llm_key = (user_llm_key or "").strip() or _server_llm_key
+search_key_ok = bool(search_key)
+llm_key_ok = bool(llm_key)
 
 html(ui.header_html())
 
@@ -138,9 +172,10 @@ def _fill(example: str) -> None:
 # ---- Tab 1：核查 -----------------------------------------------------------
 with tab_check:
     if not search_key_ok:
-        st.error("未检测到 TENCENTCLOUD_WSA_APIKEY。请复制 `.env.example` 为 `.env` 并填写元宝搜索 API Key 后重启。")
-    if not llm_key_ok:
-        st.warning("未检测到 LLM_API_KEY：只能使用「仅检索」模式，判定结果固定为「证据不足」。")
+        st.error("请在左侧填写元宝搜索 API Key。在元宝搜索控制台「概览 › 服务 API KEY 方式」创建，sk- 开头。"
+                 + ("" if PUBLIC_MODE else " 本地运行也可以写在 .env 里。"))
+    if not llm_key_ok and not no_llm:
+        st.warning("没有大模型 API Key：只能使用「仅检索」模式，判定结果固定为「证据不足」。")
 
     text = st.text_area("粘贴传闻正文", key="rumor_text", height=120,
                         placeholder="把在群聊、朋友圈、短视频里看到的说法粘贴到这里（请粘贴正文，本工具不抓取链接内容）")
@@ -156,9 +191,17 @@ with tab_check:
         else:
             if re.fullmatch(r"https?://\S+", text):
                 st.warning("只粘贴了链接：本工具不抓取网页，将仅以链接文本检索，建议粘贴正文。")
+            if len(text) > 1500:
+                st.warning("传闻太长，只取前 1500 字。")
+                text = text[:1500]
             try:
-                search = YuanbaoSearch(use_cache=use_cache)
-                llm = None if no_llm else LLM()
+                search = YuanbaoSearch(api_key=search_key, use_cache=use_cache)
+                llm = None if (no_llm or not llm_key_ok) else LLM(
+                    base_url=st.session_state.get("llm_base_url"),
+                    api_key=llm_key,
+                    model=st.session_state.get("llm_model"),
+                    thinking_off=bool(st.session_state.get("llm_thinking_off")),
+                )
             except Exception as e:  # noqa: BLE001
                 st.error(f"初始化失败：{e}")
                 st.stop()
@@ -198,7 +241,7 @@ with tab_about:
     if _poster.exists():
         _c1, _c2, _c3 = st.columns([1, 2, 1])
         with _c2:
-            st.image(str(_poster), use_container_width=True)
+            st.image(str(_poster), width="stretch")
     st.markdown(
         """
 #### 项目说明
@@ -209,6 +252,11 @@ with tab_about:
 - 大模型：任意 OpenAI 兼容接口，默认腾讯混元 `hunyuan-turbos-latest`
 - 界面：Streamlit；另有命令行 `cli.py` 与评测脚本 `eval/run_eval.py`
 - 语言：Python 3.11
+
+#### 怎么拿到 Key
+- **元宝搜索**：登录 [元宝搜索控制台](https://console.cloud.tencent.com/wsapi/index)，开通服务后在「概览 › 服务 API KEY 方式」创建，`sk-` 开头，明文只显示一次。个人账号可开标准版。
+- **大模型**：任意 OpenAI 兼容接口都行。侧栏预置了 Kimi 开放平台、Kimi Code、DeepSeek、混元，选一个填 key 即可；别的接口选「自定义」填地址和模型名。
+- 填进来的 key 只放在你这个浏览器会话里，服务器不保存、不记录。
 
 #### 已知限制
 - 个人版接口没有 `authority_level`（权威度）字段，所以自建了域名白名单做五档信源分级；未收录的地方媒体、官方机构自建域名会被归为「自媒体/未知」，微信公众号无法区分官方号与个人号。

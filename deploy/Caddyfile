@@ -1,0 +1,4 @@
+# 最省事的 HTTPS 反代：自动申请证书。把 suyuan.example.com 换成你的域名。
+suyuan.example.com {
+    reverse_proxy 127.0.0.1:8501
+}

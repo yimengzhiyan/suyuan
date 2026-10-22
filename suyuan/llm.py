@@ -50,6 +50,7 @@ class LLM:
         api_key: str | None = None,
         model: str | None = None,
         timeout: int = 60,
+        thinking_off: bool | None = None,
     ):
         self.base_url = base_url or os.getenv("LLM_BASE_URL") or DEFAULT_BASE_URL
         self.api_key = api_key or os.getenv("LLM_API_KEY", "")
@@ -63,7 +64,9 @@ class LLM:
         # 这里关闭思考、不传温度，输出更稳定也省 token。其他 OpenAI 兼容接口不受影响。
         self._kimi_code = "kimi.com" in self.base_url
         # 关闭思考模式：Kimi Code 默认关；其他接口（如开放平台的 kimi-k2.6 / kimi-k3）用 LLM_THINKING=off 显式关闭
-        thinking_off = self._kimi_code or os.getenv("LLM_THINKING", "").lower() in ("off", "0", "false", "disabled")
+        if thinking_off is None:
+            thinking_off = os.getenv("LLM_THINKING", "").lower() in ("off", "0", "false", "disabled")
+        thinking_off = thinking_off or self._kimi_code
         self._extra_body = {"thinking": {"type": "disabled"}} if thinking_off else None
 
     def chat(self, system: str, user: str, temperature: float = 0.1, max_tokens: int = 2000) -> str:

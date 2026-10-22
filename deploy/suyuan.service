@@ -1,0 +1,14 @@
+# 不用 Docker 时的 systemd 服务。放到 /etc/systemd/system/suyuan.service
+[Unit]
+Description=Suyuan rumor verification web app
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/suyuan
+Environment=SUYUAN_PUBLIC=1
+ExecStart=/opt/suyuan/.venv/bin/streamlit run app.py --server.headless=true --server.address=127.0.0.1 --server.port=8501 --browser.gatherUsageStats=false
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
