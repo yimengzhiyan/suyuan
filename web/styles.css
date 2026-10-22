@@ -630,7 +630,7 @@ ol, ul { margin: 0; padding: 0; list-style: none; }
 .stat { padding: 6px 18px; border-left: 1px solid var(--line); }
 .stat:first-child { border-left: 0; padding-left: 0; }
 .stat b { display: block; font-family: var(--serif); font-weight: 900; font-size: clamp(34px, 4.6vw, 56px); line-height: 1.1; font-variant-numeric: tabular-nums; }
-.stat span { font-size: 13px; color: var(--ink-3); letter-spacing: .08em; }
+.stat > span { font-size: 13px; color: var(--ink-3); letter-spacing: .08em; }
 .stats__foot { margin-top: 18px; font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .dist { display: flex; height: 8px; border-radius: 99px; overflow: hidden; margin-top: 18px; background: var(--line-2); }
 .dist i { display: block; height: 100%; background: var(--tc); transform: scaleX(0); transform-origin: left; transition: transform 1.2s var(--ease-out); }
