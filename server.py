@@ -231,7 +231,7 @@ def index():
     if not f.exists():
         return JSONResponse({"message": "前端尚未构建，接口可用：POST /api/verify"})
     html = f.read_text("utf-8")
-    for name in ("styles.css", "app.js"):
+    for name in ("styles.css", "app.js", "assets/architecture.svg", "assets/poster.jpg"):
         asset = WEB / name
         if asset.exists():
             html = html.replace(f"/static/{name}", f"/static/{name}?v={int(asset.stat().st_mtime)}")
