@@ -173,26 +173,31 @@
       </header>
       <div class="how__grid">
         <figure class="how__fig card" data-reveal>
-          <img src="/static/assets/architecture.svg" alt="溯源核查链条架构图：粘贴传闻、拆主张、五路检索、信源分级、溯源时间线、原文深读、有据判定、延伸话题、核查卡" loading="lazy" width="1240" height="600">
+          <img src="/static/assets/architecture.svg" alt="溯源核查链条架构图：输入、安全闸、拆主张、五路检索、信源分级、溯源时间线、原文深读、有据判定、延伸话题、核查卡" loading="lazy" width="1240" height="600">
         </figure>
         <div class="how__steps">
           <article class="how__step" data-reveal style="--d:0">
             <span class="how__n">01</span>
-            <h3>拆成主张</h3>
-            <p>大模型把一段网传拆成可核实的主张，抽出实体、时间、地点，并为每条主张生成核心、辟谣、替代三类检索词。</p>
+            <h3>先过安全闸</h3>
+            <p>文字或截图进来后先做前置检查：正则抓手机号、证件号、住址这类个人信息，大模型判断是否涉及个人隐私或敏感时政，命中直接拒绝，不花任何额度。</p>
           </article>
           <article class="how__step" data-reveal style="--d:1">
             <span class="how__n">02</span>
-            <h3>五路检索，五档信源</h3>
-            <p>用腾讯元宝搜索多路召回，按域名白名单把来源分成政府/官方、中央媒体、主流媒体、门户/垂直、自媒体/未知五档。</p>
+            <h3>拆成主张</h3>
+            <p>大模型把一段网传拆成可核实的主张，抽出实体、时间、地点，并为每条主张生成核心、辟谣、替代三类检索词。</p>
           </article>
           <article class="how__step" data-reveal style="--d:2">
             <span class="how__n">03</span>
-            <h3>时间线与首发</h3>
-            <p>把带日期的证据排成传播时间线，补搜早期版本，找出搜索可见范围内的"传闻首发"；高等级原文会被抓取深读。</p>
+            <h3>五路检索，五档信源</h3>
+            <p>用腾讯元宝搜索多路召回，按域名白名单把来源分成政府/官方、中央媒体、主流媒体、门户/垂直、自媒体/未知五档。</p>
           </article>
           <article class="how__step" data-reveal style="--d:3">
             <span class="how__n">04</span>
+            <h3>时间线与首发</h3>
+            <p>把带日期的证据排成传播时间线，补搜早期版本，找出搜索可见范围内的"传闻首发"；高等级原文会被抓取深读。</p>
+          </article>
+          <article class="how__step" data-reveal style="--d:4">
+            <span class="how__n">05</span>
             <h3>按硬规则判定</h3>
             <p>大模型只能依据编号证据作答，每个结论都要带引用；判定分属实、不实、部分属实、证据不足四类，最后生成核查卡。</p>
           </article>
