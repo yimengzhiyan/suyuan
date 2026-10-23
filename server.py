@@ -68,7 +68,7 @@ class RateLimiter:
 # 截图识别是纯 CPU 活：同一时刻只跑一张，单个 IP 每分钟 6 张、每小时 30 张
 _ocr_slot = threading.BoundedSemaphore(1)
 _ocr_limit = RateLimiter([(6, 60), (30, 3600)])
-# 核查：单个 IP 每分钟 5 次、每小时 30 次（公开模式下 key 是访问者自己的，这里主要保护服务器与安全闸调用）
+# 核查：单个 IP 每分钟 5 次、每小时 30 次（公开模式下 key 是访问者自己的，这里主要保护服务器与前置检查调用）
 _verify_limit = RateLimiter([(5, 60), (30, 3600)])
 
 
@@ -86,7 +86,7 @@ EXAMPLES = [
 
 # 进度文案 → 链条步骤 id，前端据此点亮对应节点
 STEP_PATTERNS = [
-    (re.compile(r"^安全检查"), "gate"),
+    (re.compile(r"^内容检查"), "gate"),
     (re.compile(r"^抽取可核实主张"), "claims"),
     (re.compile(r"^主张 \d+：.*检索"), "search"),
     (re.compile(r"^构建溯源时间线|^溯源补搜"), "timeline"),
@@ -158,12 +158,12 @@ def verify(body: VerifyBody, request: Request):
             def progress(msg: str):
                 q.put(("progress", {"msg": msg, "step": step_of(msg)}))
 
-            # 安全闸：个人隐私 / 敏感时政 直接拒绝，不消耗搜索额度
-            progress("安全检查…")
+            # 前置内容检查：超出公共信息范围的输入直接拒绝，不消耗搜索额度
+            progress("内容检查…")
             g = gate.check(body.text.strip(), llm)
             if not g.allowed:
-                q.put(("error", {"error": gate.REFUSAL_TEXT.get(g.category, g.reason), "refused": True,
-                                 "category": g.category, "reason": g.reason}))
+                q.put(("error", {"error": gate.REFUSAL_TEXT.get(g.category, "不在核查范围内"), "refused": True,
+                                 "category": g.category}))
                 return
 
             report = Verifier(search, llm).verify(body.text.strip(), progress=progress)

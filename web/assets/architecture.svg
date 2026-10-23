@@ -15,7 +15,7 @@
   </defs>
   <rect width="1240" height="620" fill="#fafbfc"/>
   <text x="620" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2d3a">溯源 · 传闻核查链条</text>
-  <text x="620" y="56" text-anchor="middle" class="sub">紫色：前置检查 　蓝色：元宝搜索 API 参与 　橙色：大模型参与 　绿色：最终输出</text>
+  <text x="620" y="56" text-anchor="middle" class="sub">蓝色：元宝搜索 API 参与 　橙色：大模型参与 　绿色：最终输出</text>
 
   <!-- 第一行 -->
   <rect x="20" y="100" width="150" height="100" class="box"/>
@@ -24,39 +24,33 @@
   <text x="95" y="171" text-anchor="middle" class="sub">或粘贴聊天截图</text>
   <text x="95" y="189" text-anchor="middle" class="sub">本地 OCR 转文字</text>
 
-  <rect x="200" y="100" width="160" height="100" class="box gate"/>
-  <text x="280" y="130" text-anchor="middle" class="title">② 安全闸</text>
-  <text x="280" y="153" text-anchor="middle" class="sub">正则抓个人信息</text>
-  <text x="280" y="171" text-anchor="middle" class="sub">大模型分类时政/隐私</text>
-  <text x="280" y="189" text-anchor="middle" class="sub">命中即拒，不花额度</text>
 
   <rect x="390" y="100" width="170" height="100" class="box llm"/>
-  <text x="475" y="130" text-anchor="middle" class="title">③ 拆成原子主张</text>
+  <text x="475" y="130" text-anchor="middle" class="title">② 拆成原子主张</text>
   <text x="475" y="153" text-anchor="middle" class="sub">最多 3 条，每条一件事</text>
   <text x="475" y="171" text-anchor="middle" class="sub">各生成核心 / 求证 /</text>
   <text x="475" y="189" text-anchor="middle" class="sub">备用三组检索词</text>
 
   <rect x="590" y="88" width="290" height="124" class="box api"/>
-  <text x="735" y="114" text-anchor="middle" class="title">④ 五路检索（元宝搜索 SearchPro）</text>
+  <text x="735" y="114" text-anchor="middle" class="title">③ 五路检索（元宝搜索 SearchPro）</text>
   <text x="735" y="138" text-anchor="middle" class="sub">混合 Mode=2 ｜ 新闻站 Industry=news</text>
   <text x="735" y="156" text-anchor="middle" class="sub">政府站 Industry=gov ｜ 求证词 "+辟谣/回应"</text>
   <text x="735" y="174" text-anchor="middle" class="sub">辟谣平台定向 Site=piyao.org.cn / vp.fact.qq.com</text>
   <text x="735" y="197" text-anchor="middle" class="sub" fill="#2a6fdb">每条主张 6 次调用，返回标题/链接/站点/日期/摘要</text>
 
   <rect x="910" y="100" width="150" height="100" class="box"/>
-  <text x="985" y="130" text-anchor="middle" class="title">⑤ 去重 + 分级</text>
+  <text x="985" y="130" text-anchor="middle" class="title">④ 去重 + 分级</text>
   <text x="985" y="153" text-anchor="middle" class="sub">五档白名单：</text>
   <text x="985" y="171" text-anchor="middle" class="sub">政府 › 央媒 › 主流</text>
   <text x="985" y="189" text-anchor="middle" class="sub">› 门户 › 自媒体</text>
 
   <rect x="1090" y="100" width="130" height="100" class="box api"/>
-  <text x="1155" y="130" text-anchor="middle" class="title">⑥ 溯源</text>
+  <text x="1155" y="130" text-anchor="middle" class="title">⑤ 溯源</text>
   <text x="1155" y="153" text-anchor="middle" class="sub">按日期排序</text>
   <text x="1155" y="171" text-anchor="middle" class="sub">向前补搜 30 天</text>
   <text x="1155" y="189" text-anchor="middle" class="sub">Freshness</text>
 
-  <path d="M170,150 L198,150" class="arrow"/>
-  <path d="M360,150 L388,150" class="arrow"/>
+  <path d="M170,150 L388,150" class="arrow"/>
   <path d="M560,150 L588,150" class="arrow"/>
   <path d="M880,150 L908,150" class="arrow"/>
   <path d="M1060,150 L1088,150" class="arrow"/>
@@ -64,30 +58,29 @@
 
   <!-- 第二行（从右往左） -->
   <rect x="1010" y="300" width="210" height="96" class="box"/>
-  <text x="1115" y="330" text-anchor="middle" class="title">⑦ 原文深读</text>
+  <text x="1115" y="330" text-anchor="middle" class="title">⑥ 原文深读</text>
   <text x="1115" y="354" text-anchor="middle" class="sub">抓取等级最高的 4 篇原文</text>
   <text x="1115" y="372" text-anchor="middle" class="sub">截取含数字 / 文号的片段</text>
 
   <rect x="640" y="286" width="330" height="124" class="box llm"/>
-  <text x="805" y="314" text-anchor="middle" class="title">⑧ 有据判定（大模型 + 9 条硬规则）</text>
+  <text x="805" y="314" text-anchor="middle" class="title">⑦ 有据判定（大模型 + 9 条硬规则）</text>
   <text x="805" y="338" text-anchor="middle" class="sub">只能依据编号证据，无证据必须"证据不足"</text>
   <text x="805" y="356" text-anchor="middle" class="sub">每句理由带 [编号]；在最早 12 条里挑"传闻首发"</text>
   <text x="805" y="374" text-anchor="middle" class="sub">输出：属实 / 不实 / 部分属实 / 证据不足</text>
   <text x="805" y="392" text-anchor="middle" class="sub">+ 官方口径 + 首发来源说明</text>
 
   <rect x="400" y="300" width="200" height="96" class="box api"/>
-  <text x="500" y="330" text-anchor="middle" class="title">⑨ 延伸话题</text>
+  <text x="500" y="330" text-anchor="middle" class="title">⑧ 延伸话题</text>
   <text x="500" y="354" text-anchor="middle" class="sub">模型给 3 个相关检索词</text>
   <text x="500" y="372" text-anchor="middle" class="sub">各搜一次，附在卡片末尾</text>
 
   <rect x="20" y="270" width="340" height="156" class="box out"/>
-  <text x="190" y="298" text-anchor="middle" class="title">⑩ 核查卡</text>
+  <text x="190" y="298" text-anchor="middle" class="title">⑨ 核查卡</text>
   <text x="190" y="322" text-anchor="middle" class="sub">判定 + 置信度 · 结论（每句带出处）</text>
   <text x="190" y="340" text-anchor="middle" class="sub">关键证据 · 官方口径</text>
   <text x="190" y="358" text-anchor="middle" class="sub">首发来源（区分"传闻首发"与"最早背景"）</text>
   <text x="190" y="376" text-anchor="middle" class="sub">传播时间线 · 完整证据表 · 延伸话题</text>
   <text x="190" y="394" text-anchor="middle" class="sub">本次搜索次数 / 耗时 / 深读篇数</text>
-  <text x="190" y="414" text-anchor="middle" class="sub" fill="#6b5b95">被安全闸拦下时：一张"这条不核查"卡</text>
 
   <path d="M1010,348 L972,348" class="arrow"/>
   <path d="M640,348 L602,348" class="arrow"/>
@@ -96,7 +89,7 @@
   <!-- 底部 -->
   <rect x="20" y="470" width="1200" height="120" rx="10" fill="#f1f4f7" stroke="#d5dce3"/>
   <text x="40" y="498" class="lane">一次核查的开销与保护</text>
-  <text x="40" y="524" class="sub">元宝搜索调用 8 ～ 16 次（按主张数）　·　大模型调用 3～4 次（安全闸 / 拆主张 / 判定 / 延伸）　·　耗时约 40 秒　·　搜索结果本地缓存，相同查询不重复扣额度</text>
+  <text x="40" y="524" class="sub">元宝搜索调用 8 ～ 16 次（按主张数）　·　大模型调用 3 次（拆主张 / 判定 / 延伸）　·　耗时约 40 秒　·　搜索结果本地缓存，相同查询不重复扣额度</text>
   <text x="40" y="548" class="sub">公开部署：服务器不放任何 key，访问者自带元宝搜索 Key 与大模型 Key，只存浏览器会话　·　截图在服务器本地识别、不落盘　·　按 IP 限流：识别每分钟 6 张，核查每分钟 5 次</text>
   <text x="40" y="572" class="sub">技术栈：Python · FastAPI + SSE · RapidOCR · 纯 HTML/CSS/JS 前端 · 任意 OpenAI 兼容大模型　·　个人版元宝搜索没有权威度字段，信源等级由自建域名白名单给出</text>
 </svg>

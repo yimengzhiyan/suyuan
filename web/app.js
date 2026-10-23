@@ -356,7 +356,7 @@
 
   /* ---------------- 核查链条 ---------------- */
   var STEPS = [
-    ['gate', '安全检查'], ['claims', '拆主张'], ['search', '五路检索'], ['timeline', '溯源时间线'], ['deepread', '原文深读'],
+    ['gate', '内容检查'], ['claims', '拆主张'], ['search', '五路检索'], ['timeline', '溯源时间线'], ['deepread', '原文深读'],
     ['judge', '有据判定'], ['extend', '延伸话题'], ['done', '核查卡']
   ];
   var chain = $('#chain'), track = $('#chainTrack'), logEl = $('#log'), errEl = $('#err'), resultEl = $('#result');
@@ -419,15 +419,15 @@
     errEl.innerHTML = '<strong>核查没有完成</strong>' + esc(msg);
     errEl.hidden = false;
   }
-  var CAT_NAMES = { privacy: '个人隐私', politics: '敏感时政' };
+  var CAT_NAMES = { privacy: '个人信息', politics: '超出核查范围' };
   function refuse(d) {
     stopTimer(); setRunning(false);
     paint(-1);   // 后续节点全部保持灰色
     var g = $('.node[data-step="gate"]', track);
-    if (g) { g.classList.add('is-refused'); g.setAttribute('aria-label', '安全检查：未通过'); }
+    if (g) { g.classList.add('is-refused'); g.setAttribute('aria-label', '内容检查：未通过'); }
     chain.classList.add('is-refused'); $('#chainStatus').textContent = '未进入核查';
     var cat = CAT_NAMES[d.category] || '';
-    log('安全检查未通过' + (cat ? '（' + cat + '）' : '') + '：' + (d.reason || d.error || '内容不在核查范围'), 'is-err');
+    log('内容检查未通过' + (cat ? '（' + cat + '）' : '') + '：' + (d.reason || d.error || '内容不在核查范围'), 'is-err');
     renderRefusal(d);
   }
   function finish(report) {
@@ -732,7 +732,7 @@
     var cat = CAT_NAMES[d.category] || (d.category ? String(d.category) : '');
     resultEl.innerHTML = '<div class="wrap"><article class="card refusal" data-reveal id="rRefusal" aria-labelledby="refusalTitle">' +
       '<span class="refusal__stamp" aria-hidden="true"><span>不核查</span></span>' +
-      '<p class="verdict__label">安全检查</p>' +
+      '<p class="verdict__label">内容检查</p>' +
       '<h2 class="refusal__title" id="refusalTitle">这条不核查</h2>' +
       '<p class="refusal__msg">' + esc(d.error || '这条内容不在溯源的核查范围内。') + '</p>' +
       '<dl class="refusal__meta">' +
@@ -795,12 +795,12 @@
   /* ---------------- 演示模式：?demo=1 直接渲染样例；?demo=play 回放链条 ---------------- */
   var demo = new URLSearchParams(location.search).get('demo');
   if (demo === 'refuse') {
-    // ?demo=refuse：回放一次被安全检查拦下的流程（假数据，不请求后端）
+    // ?demo=refuse：回放一次被内容检查拦下的流程（假数据，不请求后端）
     ta.value = '网传某明星出轨被拍，对方是其公司高管。'; autosize(); updateState();
     beginRun(); $('#cancel').hidden = true;
     setStep('start'); log('开始核查', 'is-step');
     setTimeout(function () {
-      setStep('gate'); log('安全检查…', 'is-step');
+      setStep('gate'); log('内容检查…', 'is-step');
       setTimeout(function () {
         refuse({ refused: true, category: 'privacy', error: '这条内容涉及具体个人的隐私或指控。溯源只核查公开的公共信息，不对个人做调查，也不会去搜索任何人的个人信息。', reason: '（演示）涉及具体公众人物的私生活与感情道德指控。' });
       }, 900);
@@ -814,7 +814,7 @@
         log('（演示模式：载入 web/dev/sample.json）');
         finish(r); return;
       }
-      var steps = [['开始核查', 'start'], ['安全检查…', 'gate'], ['抽取可核实主张…', 'claims']];
+      var steps = [['开始核查', 'start'], ['内容检查…', 'gate'], ['抽取可核实主张…', 'claims']];
       (r.claims || []).forEach(function (c, i) { steps.push(['主张 ' + (i + 1) + '：' + c.text, null]); });
       steps.push(['主张 1：多路检索（混合 / 新闻 / 政务 / 辟谣）…', 'search'], ['构建溯源时间线…', 'timeline'], ['主张 1：深读原文…', 'deepread'],
         ['大模型基于证据判定…', 'judge'], ['生成延伸话题…', 'extend'], ['完成', 'done']);

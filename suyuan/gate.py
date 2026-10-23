@@ -72,7 +72,7 @@ def keyword_check(text: str) -> GateResult | None:
     """无大模型时的严格兜底：命中时政关键词即拒绝。"""
     m = _POLITICS_KEYWORDS.search(text)
     if m:
-        return GateResult(False, "politics", f"内容涉及「{m.group(0)}」相关的时政议题。未配置大模型时按关键词从严拦截。", by="keyword")
+        return GateResult(False, "politics", f"命中关键词「{m.group(0)}」，未配置大模型时按关键词从严拦截。", by="keyword")
     return None
 
 
@@ -98,5 +98,5 @@ def check(text: str, llm: LLM | None) -> GateResult:
 
 REFUSAL_TEXT = {
     "privacy": "这条内容涉及具体个人的隐私或指控。溯源只核查公开的公共信息，不对个人做调查，也不会去搜索任何人的个人信息。",
-    "politics": "这条内容涉及敏感时政议题，不在本工具的核查范围内。溯源只处理民生政策、公共事件和社会传闻这类可以用公开权威信息核实的内容。",
+    "politics": "这条内容超出了本工具的核查范围。溯源只处理民生政策、公共事件和社会传闻这类可以用公开权威信息核实的内容。",
 }
