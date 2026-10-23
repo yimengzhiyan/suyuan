@@ -4,7 +4,7 @@
 
 > 元宝搜索开发者征文大赛参赛作品。阶段：可演示原型。
 
-<img width="709" height="999" alt="qcclip-image-qHKnCG" src="https://github.com/user-attachments/assets/ebfd673a-7a27-40a1-ba04-51b153ca39f5" />
+<p align="center"><img src="article/poster.png" alt="溯源 · 传谣核查链条" width="720"></p>
 
 体验网站：https://suyuan.changgeng.top/
 
