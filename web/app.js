@@ -184,6 +184,11 @@
     } catch (e) { /* 隐私模式等情况下忽略 */ }
   }
   [F.wsa, F.llm, F.base, F.model].forEach(function (i) { i.addEventListener('input', function () { save(); updateState(); }); });
+  // 按 key 前缀自动匹配接口：sk-kimi- 是 Kimi Code 会员 key，只能走 api.kimi.com/coding
+  F.llm.addEventListener('input', function () {
+    var v = F.llm.value.trim();
+    if (/^sk-kimi-/i.test(v) && F.preset.value !== 'kimicode') { F.preset.value = 'kimicode'; applyPreset(); save(); updateState(); }
+  });
   // Key 清空：遮罩状态下看不见旧内容，容易把新 key 接在旧 key 后面
   $$('.key-clear').forEach(function (btn) {
     btn.addEventListener('click', function () {

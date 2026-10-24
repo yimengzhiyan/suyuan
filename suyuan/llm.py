@@ -57,6 +57,11 @@ class LLM:
         self.model = model or os.getenv("LLM_MODEL") or DEFAULT_MODEL
         if not self.api_key:
             raise LLMError("缺少 LLM_API_KEY，请在 .env 中配置")
+        # Kimi Code 会员 key（sk-kimi- 开头）只能走 api.kimi.com/coding；填错成开放平台地址时自动纠正
+        if self.api_key.startswith("sk-kimi-") and "kimi.com" not in self.base_url:
+            self.base_url = "https://api.kimi.com/coding/v1"
+            if not self.model or self.model.startswith(("kimi-k", "moonshot")):
+                self.model = "kimi-for-coding"
         self.client = OpenAI(base_url=self.base_url, api_key=self.api_key, timeout=timeout)
         self.calls = 0
         self.tokens = 0
