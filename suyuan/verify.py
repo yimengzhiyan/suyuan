@@ -14,6 +14,11 @@ from .llm import LLM
 from .search import Page, YuanbaoSearch
 from .sources import DEBUNK_SITES, canonical_url, domain_of, is_debunk_site, tier_name, tier_of
 
+def _is_content_filtered(e: Exception) -> bool:
+    m = str(e).lower()
+    return "content_filter" in m or "high risk" in m or "content filter" in m
+
+
 class SearchFatal(RuntimeError):
     """搜索服务不可用（Key 无效 / 未开通 / 欠费），整次核查应当终止。"""
 
@@ -335,30 +340,37 @@ class Verifier:
         origin_candidates = origin_candidates or []
         # 溯源候选里不在 items 中的，也要给大模型看到摘要，否则无法判断是否在转述传闻
         extra = [e for e in origin_candidates if e not in items]
-        lines = []
-        for e in items + extra:
-            d = e.date_parsed.isoformat() if e.date_parsed else "未知"
-            flag = " | 辟谣平台/辟谣类内容" if e.is_debunk else ""
-            snippet = re.sub(r"\s+", " ", e.snippet)[:SNIPPET_CHARS]
-            lines.append(
-                f"[{e.idx}] 主张{e.claim_idx + 1} | {e.tier_name} | {d} | {e.site or e.url} | {e.title}{flag}\n    {snippet}"
+
+        def build_user(compact: bool) -> str:
+            """compact=True：被大模型内容过滤拒绝后的精简版，少放证据、短摘要、不带原文片段。"""
+            use_items = (items[:12] + extra[:4]) if compact else (items + extra)
+            chars = 120 if compact else SNIPPET_CHARS
+            lines = []
+            for e in use_items:
+                d = e.date_parsed.isoformat() if e.date_parsed else "未知"
+                flag = " | 辟谣平台/辟谣类内容" if e.is_debunk else ""
+                snippet = re.sub(r"\s+", " ", e.snippet)[:chars]
+                lines.append(
+                    f"[{e.idx}] 主张{e.claim_idx + 1} | {e.tier_name} | {d} | {e.site or e.url} | {e.title}{flag}\n    {snippet}"
+                )
+                if e.idx in deep and not compact:
+                    lines.append("    【原文深读】" + deep[e.idx].replace("\n", "\n    "))
+            if origin_candidates:
+                cand = "\n".join(
+                    f"[{e.idx}] {e.date_parsed.isoformat()} | {e.tier_name} | {e.site or e.url} | {e.title}"
+                    for e in origin_candidates
+                )
+                origin = "按日期从早到晚的最早候选（编号与上面的证据一致）：\n" + cand
+            else:
+                origin = "无带日期的证据"
+            return (
+                f"待核查传闻原文：\n{report.input_text[:1500]}\n\n"
+                f"抽取的主张：\n{claims_txt}\n\n"
+                f"检索到的证据（编号 | 对应主张 | 信源等级 | 日期 | 站点 | 标题，下一行为摘要）：\n" + "\n".join(lines) +
+                f"\n\n溯源候选：\n{origin}"
             )
-            if e.idx in deep:
-                lines.append("    【原文深读】" + deep[e.idx].replace("\n", "\n    "))
-        if origin_candidates:
-            cand = "\n".join(
-                f"[{e.idx}] {e.date_parsed.isoformat()} | {e.tier_name} | {e.site or e.url} | {e.title}"
-                for e in origin_candidates
-            )
-            origin = "按日期从早到晚的最早候选（编号与上面的证据一致）：\n" + cand
-        else:
-            origin = "无带日期的证据"
-        user = (
-            f"待核查传闻原文：\n{report.input_text[:1500]}\n\n"
-            f"抽取的主张：\n{claims_txt}\n\n"
-            f"检索到的证据（编号 | 对应主张 | 信源等级 | 日期 | 站点 | 标题，下一行为摘要）：\n" + "\n".join(lines) +
-            f"\n\n溯源候选：\n{origin}"
-        )
+
+        user = build_user(compact=False)
         system = """你是严谨的事实核查员。请仅依据用户给出的编号证据，判断传闻整体是否属实。
 
 硬性规则：
@@ -383,9 +395,23 @@ class Verifier:
         try:
             data = self.llm.chat_json(system, user, max_tokens=1500)
         except Exception as e:  # noqa: BLE001
-            report.warnings.append(f"判定失败：{e}")
-            report.verdict, report.reasoning = "证据不足", "大模型判定失败，无法给出结论。"
-            return
+            if _is_content_filtered(e):
+                # 大模型的内容安全策略拒绝了整段证据：换精简版再试一次
+                report.warnings.append("大模型的内容安全策略拒绝了完整证据，已改用精简证据重新判定。")
+                try:
+                    data = self.llm.chat_json(system, build_user(compact=True), max_tokens=1500)
+                except Exception as e2:  # noqa: BLE001
+                    report.warnings.append(
+                        "判定失败：大模型的内容安全策略拒绝了这条传闻的证据（content_filter）。"
+                        "这是模型服务商的限制，可换一个大模型重试；检索到的证据与时间线仍然有效。"
+                        if _is_content_filtered(e2) else f"判定失败：{e2}"
+                    )
+                    report.verdict, report.reasoning = "证据不足", "大模型拒绝处理这条传闻的证据，无法给出结论；请直接查看下方证据与时间线。"
+                    return
+            else:
+                report.warnings.append(f"判定失败：{e}")
+                report.verdict, report.reasoning = "证据不足", "大模型判定失败，无法给出结论。"
+                return
 
         verdict = str(data.get("verdict") or "").strip()
         if verdict not in VERDICTS:
