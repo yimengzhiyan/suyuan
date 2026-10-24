@@ -184,6 +184,13 @@
     } catch (e) { /* 隐私模式等情况下忽略 */ }
   }
   [F.wsa, F.llm, F.base, F.model].forEach(function (i) { i.addEventListener('input', function () { save(); updateState(); }); });
+  // Key 清空：遮罩状态下看不见旧内容，容易把新 key 接在旧 key 后面
+  $$('.key-clear').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var inp = document.getElementById(btn.getAttribute('data-for')); if (!inp) return;
+      inp.value = ''; save(); updateState(); inp.focus({ preventScroll: true });
+    });
+  });
   // Key 显示 / 隐藏
   $$('.key-eye').forEach(function (btn) {
     btn.addEventListener('click', function () {
