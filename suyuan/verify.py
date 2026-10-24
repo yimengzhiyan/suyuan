@@ -14,6 +14,10 @@ from .llm import LLM
 from .search import Page, YuanbaoSearch
 from .sources import DEBUNK_SITES, canonical_url, domain_of, is_debunk_site, tier_name, tier_of
 
+class SearchFatal(RuntimeError):
+    """搜索服务不可用（Key 无效 / 未开通 / 欠费），整次核查应当终止。"""
+
+
 VERDICTS = ("属实", "不实", "部分属实", "证据不足")
 MAX_EVIDENCE_PER_CLAIM = 15  # 每条主张喂给大模型的证据上限
 SNIPPET_CHARS = 300
@@ -151,6 +155,12 @@ class Verifier:
         try:
             res = self.search.search(query, channel=channel, **kw)
         except Exception as e:  # noqa: BLE001
+            msg = str(e)
+            # Key 无效、未开通、欠费：继续跑只会得到一份全靠缓存拼出来的假结果，直接终止
+            if any(code in msg for code in ("UnauthorizedOperation", "ResourceNotFound", "ResourceUnavailable", "AuthFailure")):
+                raise SearchFatal(
+                    "元宝搜索拒绝了请求（" + msg.split(":")[0].strip() + "）。请检查填写的元宝搜索 Key 是否正确、服务是否已开通、是否欠费。"
+                ) from e
             report.warnings.append(f"检索失败 [{channel}] {query!r} {kw}: {e}")
             return []
         if res.cached:
