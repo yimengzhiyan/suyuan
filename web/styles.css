@@ -801,3 +801,12 @@ ol, ul { margin: 0; padding: 0; list-style: none; }
 
 /* tier color var helpers (for timeline dots, site tags, distribution) */
 .tc1 { --tc: var(--t1); } .tc2 { --tc: var(--t2); } .tc3 { --tc: var(--t3); } .tc4 { --tc: var(--t4); } .tc5 { --tc: var(--t5); }
+
+/* ---------- Key 输入：文本框 + 遮罩，避免浏览器密码管理器接管；可切换显示 ---------- */
+.key-wrap { position: relative; }
+.key-wrap .key-input { padding-right: 64px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; letter-spacing: .02em; }
+.key-input.is-masked { -webkit-text-security: disc; }
+.key-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink-2); font-size: 12px; cursor: pointer; }
+.key-eye:hover { border-color: var(--ink-3); color: var(--ink); }
+.key-eye:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.key-tail { font-weight: 400; color: var(--ink-3); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; margin-left: 6px; }

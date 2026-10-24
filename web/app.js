@@ -184,6 +184,18 @@
     } catch (e) { /* 隐私模式等情况下忽略 */ }
   }
   [F.wsa, F.llm, F.base, F.model].forEach(function (i) { i.addEventListener('input', function () { save(); updateState(); }); });
+  // Key 显示 / 隐藏
+  $$('.key-eye').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var inp = document.getElementById(btn.getAttribute('data-for')); if (!inp) return;
+      var show = inp.classList.toggle('is-masked') === false;
+      btn.textContent = show ? '隐藏' : '显示';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+      btn.setAttribute('aria-label', show ? '隐藏 Key' : '显示 Key');
+      inp.focus({ preventScroll: true });
+    });
+  });
+  function keyTail(v) { v = (v || '').trim(); if (!v) return ''; return v.length > 8 ? '已填写 ' + v.slice(0, 3) + '…' + v.slice(-4) + '，共 ' + v.length + ' 位' : '已填写'; }
   [F.think, F.cache].forEach(function (i) { i.addEventListener('change', save); });
   F.noLlm.addEventListener('change', function () { save(); updateState(); });
   load();
@@ -198,6 +210,7 @@
   function needWsa() { return CFG.public || !CFG.server_search_key; }
   function updateState() {
     var hasWsa = !!F.wsa.value.trim(), hasLlm = !!F.llm.value.trim();
+    $('#wsaTail').textContent = keyTail(F.wsa.value); $('#llmTail').textContent = keyTail(F.llm.value);
     var st = $('#keysState'); var warn = false, msg = '';
     if (hasWsa || hasLlm) { st.textContent = '· 已填写' + (hasWsa && hasLlm ? '' : (hasWsa ? '搜索 Key' : '大模型 Key')); }
     else if (needWsa()) { st.textContent = '· 需要填写'; warn = true; }
